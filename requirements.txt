@@ -1,0 +1,9 @@
+# Minimal runtime for Paper 2 pilots (greedy / BBA / BOLA / RobustMPC).
+# PPO checkpoints need stable-baselines3 + torch separately.
+
+gymnasium>=0.29,<1.1
+numpy>=1.24,<2.2
+pandas>=2.0
+scipy>=1.10
+matplotlib>=3.7
+tqdm>=4.65

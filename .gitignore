@@ -8,15 +8,15 @@ venv/
 .env.*
 
 # Results / heavy artifacts
-results/**/*.csv
-results/**/*.json
+results/**/*
 !results/**/.gitkeep
 *.h5
 *.pt
 *.ckpt
 *.zip
 
-# Videos / traces (never commit)
+# Data junction / local assets (never commit)
+data/
 raw_videos/
 encoded_multires/
 traces/

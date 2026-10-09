@@ -2,28 +2,53 @@
 
 Independent repository for the second paper on conformal ABR shielding.
 
-This repo is **not** a fork of [ABR-Awareness](https://github.com/saeedzarbi/ABR-Awareness).
-Paper 1 stays in that project. Here we only keep experiments, analysis, and manuscript
-assets for Paper 2.
+This is **not** a fork of [ABR-Awareness](https://github.com/saeedzarbi/ABR-Awareness).
+A minimal CPS eval slice was copied here so Paper 2 experiments can run without
+editing the Paper 1 tree. See `NOTICE.md`.
 
-## Candidate directions (decide after the two-day pilot)
+## Candidate directions
 
-1. **Buffer-conditioned risk** — \(\alpha_k = f(B_k)\), joint with \(\varepsilon\), vs best fixed \((\varepsilon,\alpha)\).
-2. **Cold-start / calibration recipe** — stall-budget accounting, warm-start, weighted window, ACI; fair \(\rho_{\mathrm{fb}}\) sweep.
+1. **Buffer-conditioned risk** — \(\alpha_k = f(B_k)\), joint with \(\varepsilon\).
+2. **Cold-start / calibration recipe** — stall-budget accounting + fair \(\rho_{\mathrm{fb}}\) sweep.
 
-See `docs/decision_rule.md` for the go/no-go criteria.
+Go/no-go criteria: `docs/decision_rule.md`.
 
 ## Layout
 
 ```
-src/           # calibrators, stall accounting, evaluation harness
-experiments/   # launch scripts and configs
-results/       # summaries and tables (tracked selectively)
-paper/         # manuscript / Overleaf export
-docs/          # design notes and decision rules
+configs/       # paths + video roster
+src/
+  training/    # Certified Perceptual Shield
+  environment/ # ABREnv chain through v18
+  evaluation/  # paired arms, stall breakdown, eps/alpha grid, drift
+experiments/   # Paper 2 launch scripts (to add)
+results/       # run outputs
+paper/         # manuscript assets
+docs/          # design notes
+data/          # local junction / copy of traces+VMAF (not in git)
 ```
 
-## Relation to Paper 1
+## Quick start
 
-Reuse ideas and, if needed, **copy only** the minimal shield + simulator pieces under a clear
-license note. Do not keep a live dependency on the Paper 1 working tree.
+```bash
+cd CPS-Paper2
+python -m pip install -r requirements.txt
+
+# smoke: greedy certified arms on synthetic 5G (needs data/)
+python src/evaluation/eval_certified_shield_v18.py ^
+  --policy greedy ^
+  --trace-dir data/standardized/test_traces_5g_v18 ^
+  --episodes 8 --epsilon 1.0 --alpha 0.10 ^
+  --arms raw,safety,certified ^
+  --out results/smoke/greedy_5g
+```
+
+Stall accounting (Paper 2 Direction B):
+
+```bash
+python src/evaluation/stall_cause_breakdown_v18.py --help
+```
+
+## Data
+
+See `docs/data_setup.md`. On this machine `data/` is a junction to Paper 1’s `new/data`.
