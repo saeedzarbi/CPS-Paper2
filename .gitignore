@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Results / heavy artifacts
+results/**/*.csv
+results/**/*.json
+!results/**/.gitkeep
+*.h5
+*.pt
+*.ckpt
+*.zip
+
+# Videos / traces (never commit)
+raw_videos/
+encoded_multires/
+traces/
+models/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
