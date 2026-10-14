@@ -1,0 +1,136 @@
+"""Generate LaTeX macros for the Certified Perceptual Shield (V18) paper section.
+
+Reads results/v18_certified/*/summary.json (and episodes.csv for the co-design
+QoE crossover) and writes tables/macros_cps.tex with reproducible numbers used by
+the abstract, contributions, and evaluation tables. Run from the `new/` dir:
+
+    python src/paper/make_cps_macros.py
+"""
+import csv
+import json
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[2]          # .../new
+RES = ROOT / "results" / "v18_certified"
+OUT = Path(__file__).resolve().parent / "tables" / "macros_cps.tex"
+OUT_UP = Path(__file__).resolve().parent / "overleaf_upload" / "tables" / "macros_cps.tex"
+
+
+def load(name):
+    p = RES / name / "summary.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
+
+def arm(s, a, k):
+    v = s["arms"][a][k]
+    return v["mean"] if isinstance(v, dict) else v
+
+
+def cmp(s, name):
+    return s["comparisons"][name]
+
+
+def pct(x):            # signed percent, 1 decimal
+    return f"{x:+.1f}"
+
+
+def num(x, d=2):
+    return f"{x:.{d}f}"
+
+
+def pval(p):
+    """LaTeX scientific p-value, e.g. 5.0\\times10^{-5}, or <10^{-4} shorthand."""
+    if p <= 0:
+        return "<10^{-300}"
+    import math
+    e = int(math.floor(math.log10(p)))
+    m = p / (10 ** e)
+    return f"{m:.1f}\\!\\times\\!10^{{{e}}}"
+
+
+def codesign_qoe_crossover():
+    """w* = dVMAF/dReb on the paired CERTIFIED arm (co-trained vs eval-only)."""
+    def col(name, key):
+        rows = {}
+        with open(RES / name / "episodes.csv", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if r["arm"] == "certified":
+                    rows[int(r["episode"])] = float(r[key])
+        return rows
+    vA, rA = col("proposed_5g_regime", "vmaf_mean"), col("proposed_5g_regime", "rebuffer_total")
+    vB, rB = col("proposed_cps_5g", "vmaf_mean"), col("proposed_cps_5g", "rebuffer_total")
+    eps = sorted(set(vA) & set(vB))
+    dV = np.mean([vB[e] for e in eps]) - np.mean([vA[e] for e in eps])
+    dR = np.mean([rB[e] for e in eps]) - np.mean([rA[e] for e in eps])
+    return dV, dR, (dV / dR if dR else float("nan"))
+
+
+M = []
+def macro(name, val):
+    M.append(f"\\newcommand{{\\{name}}}{{{val}}}")
+
+
+# -------- global settings --------
+g5 = load("greedy_5g")
+macro("CPSepisodes", g5["arms"]["raw"] and "200")   # episodes per arm
+macro("CPSepsilon", num(g5["epsilon"], 1))
+macro("CPSalpha", num(g5["alpha"], 2))
+macro("CPScovTarget", num(g5.get("coverage_target", 1 - g5["alpha"]), 2))
+
+# -------- model-agnostic arms (5G), calibrated coverage --------
+for tag, s in [("greedy", load("greedy_5g")), ("bba", load("bba_5g"))]:
+    cs = cmp(s, "certified_vs_safety")
+    cr = cmp(s, "certified_vs_raw")
+    T = tag.capitalize()
+    macro(f"CPS{T}BWcs", pct(cs["bandwidth_reduction_pct"]))
+    macro(f"CPS{T}RebCs", pct(cs["rebuffer_change_pct"]))
+    macro(f"CPS{T}VMcs", num(cs["vmaf_mean_diff"]))
+    macro(f"CPS{T}RebCr", pct(cr["rebuffer_change_pct"]))
+    macro(f"CPS{T}Cov", num(arm(s, "certified", "conformal_coverage"), 3))
+    macro(f"CPS{T}PBWcs", pval(cs["bandwidth_wilcoxon_p"]))
+    macro(f"CPS{T}PRebCs", pval(cs["rebuffer_wilcoxon_p"]))
+
+# improved (predictive + forecast)
+for tag, s in [("greedy", load("greedy_5g_improved")), ("bba", load("bba_5g_improved"))]:
+    cs = cmp(s, "certified_vs_safety")
+    T = tag.capitalize()
+    macro(f"CPS{T}ImpBWcs", pct(cs["bandwidth_reduction_pct"]))
+    macro(f"CPS{T}ImpRebCs", pct(cs["rebuffer_change_pct"]))
+    macro(f"CPS{T}ImpVMcs", num(cs["vmaf_mean_diff"]))
+
+# -------- broadband boundary (banking headroom small) --------
+bb = load("greedy_bb")
+macro("CPSbbBWcs", pct(cmp(bb, "certified_vs_safety")["bandwidth_reduction_pct"]))
+macro("CPSbbRebSr", pct(cmp(bb, "safety_vs_raw")["rebuffer_change_pct"]))
+
+# -------- RL policy (proposed), pulled results --------
+for tag, s in [("Prop", load("proposed_5g")), ("PropImp", load("proposed_5g_improved"))]:
+    cs = cmp(s, "certified_vs_safety")
+    macro(f"CPS{tag}BWcs", pct(cs["bandwidth_reduction_pct"]))
+    macro(f"CPS{tag}RebCs", pct(cs["rebuffer_change_pct"]))
+    macro(f"CPS{tag}VMcs", num(cs["vmaf_mean_diff"]))
+    macro(f"CPS{tag}PRebCs", pval(cs["rebuffer_wilcoxon_p"]))
+
+# -------- co-design (item 5): certified arm --------
+reg, cps = load("proposed_5g_regime"), load("proposed_cps_5g")
+macro("CPScoRegVM", num(arm(reg, "certified", "vmaf_mean")))
+macro("CPScoRegReb", num(arm(reg, "certified", "rebuffer_total")))
+macro("CPScoRegBr", f"{arm(reg, 'certified', 'bitrate_mean_kbps'):.0f}")
+macro("CPScoCpsVM", num(arm(cps, "certified", "vmaf_mean")))
+macro("CPScoCpsReb", num(arm(cps, "certified", "rebuffer_total")))
+macro("CPScoCpsBr", f"{arm(cps, 'certified', 'bitrate_mean_kbps'):.0f}")
+dV, dR, wstar = codesign_qoe_crossover()
+macro("CPScoDVM", num(dV))
+macro("CPScoDReb", num(dR))
+macro("CPScoWstar", num(wstar))
+
+header = ("% Auto-generated by src/paper/make_cps_macros.py -- DO NOT EDIT BY HAND.\n"
+          "% Certified Perceptual Shield (V18) numbers.\n")
+text = header + "\n".join(M) + "\n"
+for path in (OUT, OUT_UP):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    print(f"wrote {path} ({len(M)} macros)")
+print("\n".join(M))

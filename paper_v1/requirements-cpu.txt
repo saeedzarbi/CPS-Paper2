@@ -1,0 +1,23 @@
+# CPU-only server requirements for the V14 ABR pipeline (reviewer-response).
+#
+# Install torch from the CPU wheel index first, then the rest:
+#   python -m pip install --upgrade pip
+#   python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   python -m pip install -r requirements-cpu.txt
+#
+# Tested combination (Stable-Baselines3 2.x requires gymnasium >= 0.29 and a
+# compatible torch). Pin ranges kept broad so the server's available CPU wheels
+# resolve; tighten if you need bit-exact reproducibility.
+
+stable-baselines3>=2.2,<3.0
+gymnasium>=0.29,<1.1
+numpy>=1.24,<2.2
+pandas>=2.0
+opencv-python-headless>=4.8   # SI/TI extraction (data/si_ti_extractor.py)
+scipy>=1.10
+tqdm>=4.65
+rich>=13.0            # progress_bar=True in SB3 uses rich
+tensorboard>=2.12     # optional: training curves / dual-variable traces
+
+# torch is intentionally NOT listed here; install the CPU wheel separately:
+#   python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
