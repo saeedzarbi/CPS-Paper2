@@ -3,7 +3,8 @@
 This repo expects a `data/` directory at the project root with the same layout as
 Paper 1 (`new/data`), including:
 
-- `data/standardized/test_traces_5g_v18/`
+- `data/standardized/test_traces_5g_v18/` (synthetic 5G-like; Paper 1)
+- `data/standardized/test_traces_5g_irish_mmsys20/` (optional **real** 5G — see [`docs/data_5g_real.md`](data_5g_real.md))
 - `data/standardized/test_traces_v18/` (broadband)
 - `data/vmaf_scores/` (session / per-chunk VMAF logs used by the env)
 

@@ -23,6 +23,7 @@ models/
 
 # Secrets / local server credentials (never commit)
 server.txt
+mattermost_webhook.url
 
 # OS / IDE
 .DS_Store
@@ -41,3 +42,5 @@ Thumbs.db
 *.out
 *.synctex.gz
 *.toc
+/data
+/mattermost_webhook.url.example

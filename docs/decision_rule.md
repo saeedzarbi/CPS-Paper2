@@ -1,5 +1,9 @@
 # Project Specification: Online Adaptive Conformal & Action-Masked Perceptual Shielding (CPS-Paper2 / V20)
 
+> **Archived for new development (2026-10).** Active Paper 2 direction: **[Multi-Horizon Conformal Tube-MPC](decision_rule_tube_mpc.md)** (no VMAF). See `docs/pivot_note.md` and `docs/help2.txt`.
+
+---
+
 ## 1. Overview & Motivation
 This repository (`CPS-Paper2`) develops the second-generation runtime assurance framework for client-side Adaptive Bitrate (ABR) video streaming, building upon the baseline archive in `paper_v1/`.
 While Paper 1 (`src/training/certified_perceptual_shield.py`, V18) introduced VMAF-knee bandwidth banking and static split-conformal throughput lower bounds, it exhibited three quantitative bottlenecks:

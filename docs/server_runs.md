@@ -77,6 +77,19 @@ bash experiments/paper2/run_campaign.sh 2>&1 | tee results/oacs/campaigns/logs/r
 rsync -avz results/oacs/ user@laptop:~/CPS-Paper2/results/oacs/
 ```
 
+## Mattermost webhook (per-step logs)
+
+Create `mattermost_webhook.url` at repo root (one line, incoming webhook URL; gitignored).
+Or export `MATTERMOST_WEBHOOK_URL`.
+
+`run_campaign.sh` and `eval_oacs_campaign.py` post on: campaign start/end, each policy×trace job, each arm, each summary.
+
+Test:
+
+```bash
+python scripts/paper2/mattermost_notify.py "OACS webhook test"
+```
+
 ## 8. What stays on laptop vs server
 
 | Task | Where |

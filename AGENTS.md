@@ -10,3 +10,5 @@ This repo uses a **two-agent** workflow documented in [`docs/agents/README.md`](
 Handoff templates: `docs/agents/execution_brief_template.md`, `docs/agents/execution_report_template.md`.
 
 Paper 2 uses **OACS** release naming (`oacs-r1`, `results/oacs/`) — not `v20`. See `docs/paper2_naming.md` and `docs/server_runs.md`.
+
+**Current scientific direction (2026-10):** Tube-MPC without VMAF — `docs/decision_rule_tube_mpc.md`. Legacy OACS spec: `docs/decision_rule.md` (archived).
