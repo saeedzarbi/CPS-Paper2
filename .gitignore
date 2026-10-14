@@ -16,11 +16,13 @@ results/**/*
 *.zip
 
 # Data junction / local assets (never commit)
-data/
 raw_videos/
 encoded_multires/
 traces/
 models/
+
+# Secrets / local server credentials (never commit)
+server.txt
 
 # OS / IDE
 .DS_Store

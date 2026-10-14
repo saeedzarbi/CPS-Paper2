@@ -25,3 +25,15 @@ mklink /J "%USERPROFILE%\OneDrive\Desktop\CPS-Paper2\data" "%USERPROFILE%\OneDri
 
 Copy or regenerate traces and VMAF scores into `data/` inside this repo.
 Do **not** commit raw videos or large CSVs; keep them local or on Zenodo later.
+
+## Linux server (Paper 2 / OACS)
+
+Mount the dataset once and point the repo at it:
+
+```bash
+export CPS_PAPER2_DATA_ROOT=/path/to/data
+python scripts/paper2/verify_data.py
+```
+
+Full runbook: [`docs/server_runs.md`](server_runs.md).  
+Naming (`oacs-r1`, `results/oacs/`) is **not** the Paper 1 `v18` convention — see [`docs/paper2_naming.md`](paper2_naming.md).

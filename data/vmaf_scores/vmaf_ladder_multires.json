@@ -1,0 +1,32 @@
+{
+  "0": {
+    "bitrate": 300,
+    "width": 384,
+    "height": 216
+  },
+  "1": {
+    "bitrate": 750,
+    "width": 512,
+    "height": 288
+  },
+  "2": {
+    "bitrate": 1200,
+    "width": 768,
+    "height": 432
+  },
+  "3": {
+    "bitrate": 1850,
+    "width": 1024,
+    "height": 576
+  },
+  "4": {
+    "bitrate": 2850,
+    "width": 1280,
+    "height": 720
+  },
+  "5": {
+    "bitrate": 6000,
+    "width": 1920,
+    "height": 1080
+  }
+}

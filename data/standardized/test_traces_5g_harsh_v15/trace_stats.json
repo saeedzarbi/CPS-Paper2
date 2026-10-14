@@ -1,0 +1,47 @@
+{
+  "generator": "v14_three_state_ar1",
+  "preset": "harsh",
+  "config": {
+    "los_median_mbps": 8.0,
+    "los_cv": 0.5,
+    "los_dwell_s": 4.0,
+    "nlos_median_mbps": 2.5,
+    "nlos_cv": 0.7,
+    "nlos_dwell_s": 4.0,
+    "outage_median_mbps": 0.15,
+    "outage_cv": 0.5,
+    "outage_dwell_s": 3.0,
+    "p_los_to_nlos": 0.5,
+    "p_nlos_to_los": 0.3,
+    "p_nlos_to_outage": 0.2,
+    "ar_rho": 0.4
+  },
+  "n_traces": 50,
+  "length_s": 300,
+  "validation": {
+    "mean_kbps": {
+      "mean": 4825.455866706602,
+      "std": 549.1601988560503
+    },
+    "median_kbps": {
+      "mean": 3867.4372119465615,
+      "std": 670.7690758389929
+    },
+    "cv": {
+      "mean": 0.7115864740855845,
+      "std": 0.060977896514880385
+    },
+    "outage_frac": {
+      "mean": 0.029200000000000004,
+      "std": 0.024472751287003994
+    },
+    "min_kbps": {
+      "mean": 169.7469003589048,
+      "std": 79.71391437451503
+    },
+    "p05_kbps": {
+      "mean": 822.822895580012,
+      "std": 463.71047945017995
+    }
+  }
+}

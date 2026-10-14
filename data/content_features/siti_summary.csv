@@ -1,0 +1,15 @@
+video,mean_si,mean_ti,max_si,max_ti,std_si,std_ti,complexity
+tearsofsteel_short,67.99,58.54,252.62,110.24,51.86,17.7,High (Complex + Fast Motion)
+crowd_run,102.21,28.06,110.55,38.76,3.71,4.67,High (Complex + Fast Motion)
+bigbuckbunny,60.56,47.15,295.91,104.66,51.5,21.47,High (Complex + Fast Motion)
+tearsofsteel,40.97,31.78,91.33,83.01,14.04,13.99,High-TI (Fast Motion)
+sintel,50.35,14.68,185.46,84.7,39.62,17.45,High-SI (Complex Details)
+elephants_dream,51.77,27.01,108.44,130.79,28.55,18.93,High (Complex + Fast Motion)
+ducks,94.86,16.57,107.4,23.35,8.85,2.72,High-SI (Complex Details)
+cosmos,42.56,38.34,177.56,127.27,33.97,20.14,High-TI (Fast Motion)
+parkjoy,119.72,34.82,132.34,43.33,8.7,8.74,High (Complex + Fast Motion)
+old_town_cross,61.23,12.58,64.57,20.26,1.26,1.75,High-SI (Complex Details)
+rush_hour,27.68,11.65,31.06,21.92,1.44,2.6,Medium
+into_tree,47.44,14.38,53.99,18.77,5.54,2.37,Medium
+sunflower,38.02,16.46,45.37,30.39,6.04,5.8,Medium
+kristen_and_sara,85.8,6.99,87.65,14.95,0.78,2.65,High-SI (Complex Details)
