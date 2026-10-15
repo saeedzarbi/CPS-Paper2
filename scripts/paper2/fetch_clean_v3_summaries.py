@@ -49,15 +49,20 @@ def main() -> int:
 
     ok = 0
     for job in JOBS:
-        remote = f"{REMOTE}/results/clean_v3/{job}/summary.json"
-        dest = local_base / job / "summary.json"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            sftp.get(remote, str(dest))
+        dest_dir = local_base / job
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        got = 0
+        for name in ("summary.json", "episodes.csv"):
+            remote = f"{REMOTE}/results/clean_v3/{job}/{name}"
+            dest = dest_dir / name
+            try:
+                sftp.get(remote, str(dest))
+                got += 1
+            except OSError as e:
+                print(f"SKIP {job}/{name}: {e}")
+        if got:
             ok += 1
-            print(f"OK {job}")
-        except OSError as e:
-            print(f"SKIP {job}: {e}")
+            print(f"OK {job} ({got} files)")
 
     sftp.close()
     client.close()

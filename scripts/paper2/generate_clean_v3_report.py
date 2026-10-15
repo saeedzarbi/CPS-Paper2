@@ -45,15 +45,21 @@ def p_wilcoxon(summary: dict, key: str, treat: str, ref: str) -> float:
         return float("nan")
 
 
+def _best_hint(metric_key: str) -> str:
+    if metric_key in ("rebuffer_total", "rebuffer_p95_chunk", "smooth_penalty_mean"):
+        return "lowest is best"
+    return "highest is best"
+
+
 def table_block(title: str, metric_key: str, label: str) -> list[str]:
-    lines = [f"### {title}", "", f"*{label}* — **bold** = best (rebuffer: lowest; utility/QoE: highest).", ""]
+    lines = [f"### {title}", "", f"*{label}* — **bold** = best ({_best_hint(metric_key)}).", ""]
     for tr in TRACES:
         lines.append(f"#### {tr}")
         lines.append("")
         hdr = "| Policy | raw | static | tube | p(tube vs static) | p(tube vs raw) |"
         lines.append(hdr)
         lines.append("|" + "---|" * 6)
-        lower_better = "rebuffer" in metric_key
+        lower_better = "rebuffer" in metric_key or metric_key == "smooth_penalty_mean"
         for pol in POLICIES:
             s = load(f"{pol}_{tr}")
             if not s:

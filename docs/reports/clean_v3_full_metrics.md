@@ -7,7 +7,7 @@ Source: `results/clean_v3/**/summary.json`
 
 ### Mean rebuffer (s/ep)
 
-*Mean rebuffer (s/ep)* — **bold** = best (rebuffer: lowest; utility/QoE: highest).
+*Mean rebuffer (s/ep)* — **bold** = best (lowest is best).
 
 #### 5g_markov
 
@@ -29,7 +29,7 @@ Source: `results/clean_v3/**/summary.json`
 
 ### p95 chunk rebuffer (s)
 
-*p95 chunk rebuffer (s)* — **bold** = best (rebuffer: lowest; utility/QoE: highest).
+*p95 chunk rebuffer (s)* — **bold** = best (lowest is best).
 
 #### 5g_markov
 
@@ -51,29 +51,29 @@ Source: `results/clean_v3/**/summary.json`
 
 ### Mean smoothness (|Δlog u|)
 
-*Mean smoothness (|Δlog u|)* — **bold** = best (rebuffer: lowest; utility/QoE: highest).
+*Mean smoothness (|Δlog u|)* — **bold** = best (lowest is best).
 
 #### 5g_markov
 
 | Policy | raw | static | tube | p(tube vs static) | p(tube vs raw) |
 |---|---|---|---|---|---|
-| mpc | 0.22 | **0.32** | 0.25 | 6.48e-32 | 2.12e-06 |
-| greedy | 0.00 | **0.46** | 0.24 | 3.32e-35 | 3.17e-35 |
-| bba | 0.49 | **0.50** | 0.28 | 3.17e-35 | 3.27e-35 |
-| bola | **0.85** | 0.65 | 0.37 | 3.17e-35 | 3.17e-35 |
+| mpc | **0.22** | 0.32 | 0.25 | 6.48e-32 | 2.12e-06 |
+| greedy | **0.00** | 0.46 | 0.24 | 3.32e-35 | 3.17e-35 |
+| bba | 0.49 | 0.50 | **0.28** | 3.17e-35 | 3.27e-35 |
+| bola | 0.85 | 0.65 | **0.37** | 3.17e-35 | 3.17e-35 |
 
 #### bb
 
 | Policy | raw | static | tube | p(tube vs static) | p(tube vs raw) |
 |---|---|---|---|---|---|
-| mpc | 0.08 | **0.14** | 0.10 | 1.33e-26 | 3.57e-10 |
-| greedy | 0.00 | **0.54** | 0.11 | 7.61e-35 | 7.56e-35 |
-| bba | 0.13 | **0.51** | 0.11 | 7.61e-35 | 5.21e-01 |
-| bola | **0.69** | 0.49 | 0.12 | 7.61e-35 | 3.17e-35 |
+| mpc | **0.08** | 0.14 | 0.10 | 1.33e-26 | 3.57e-10 |
+| greedy | **0.00** | 0.54 | 0.11 | 7.61e-35 | 7.56e-35 |
+| bba | 0.13 | 0.51 | **0.11** | 7.61e-35 | 5.21e-01 |
+| bola | 0.69 | 0.49 | **0.12** | 7.61e-35 | 3.17e-35 |
 
 ### Mean log-bitrate utility
 
-*Mean log-bitrate utility* — **bold** = best (rebuffer: lowest; utility/QoE: highest).
+*Mean log-bitrate utility* — **bold** = best (highest is best).
 
 #### 5g_markov
 
@@ -95,7 +95,7 @@ Source: `results/clean_v3/**/summary.json`
 
 ### Mean episodic QoE
 
-*Mean episodic QoE* — **bold** = best (rebuffer: lowest; utility/QoE: highest).
+*Mean episodic QoE* — **bold** = best (highest is best).
 
 #### 5g_markov
 

@@ -10,6 +10,7 @@ Canonical Paper 2 simulator and **`clean_v3`** campaign (three conformal arms, M
 | 2 Wall-clock env | `src/environment/clean_abr_env.py` (`CleanABREnv`) |
 | 3 Control arms | `src/control/two_timescale_conformal.py` |
 | 4 Campaign | `experiments/run_clean_campaign.py` |
+| 5 Extended validation | `src/evaluation/run_extended_validation.py` → `results/clean_v3_extended/` |
 
 Legacy `abr_multi_env_v5..v18` removed from `src/environment/` (frozen copy remains under `paper_v1/`).
 

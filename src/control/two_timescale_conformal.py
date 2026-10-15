@@ -7,7 +7,7 @@ Conformal control arms for CleanABREnv (Paper 2 headline: raw / static / tube).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Union
 
 import numpy as np
 
@@ -16,9 +16,23 @@ from src.training.conformal_tube import ConformalTubeConfig
 from src.training.tube_mpc_policy import TubeMPCConfig, TubeMPCPolicy
 
 HeadlineArm = Literal["raw", "static_conformal", "tube_conformal"]
+AblationArm = Literal[
+    "heuristic_85",
+    "symmetric_tube",
+    "fixed_alpha_tube",
+]
+EvalArm = Union[HeadlineArm, AblationArm]
 ArmName = HeadlineArm  # backward-compatible alias
 
 HEADLINE_ARMS: tuple[HeadlineArm, ...] = ("raw", "static_conformal", "tube_conformal")
+ABLATION_ARMS: tuple[EvalArm, ...] = (
+    "raw",
+    "heuristic_85",
+    "static_conformal",
+    "symmetric_tube",
+    "fixed_alpha_tube",
+    "tube_conformal",
+)
 
 
 @dataclass
@@ -92,6 +106,127 @@ class StaticConformalProjector:
 
     def project_action(self, proposed: int) -> int:
         return self.max_safe_action(proposed)
+
+
+class Heuristic85Projector:
+    """Fixed 0.85× harmonic throughput discount (no conformal quantile)."""
+
+    def __init__(self, env, cfg: ControlArmConfig | None = None):
+        self.env = env
+        self.cfg = cfg or ControlArmConfig()
+        self._tp_hist: list[float] = []
+
+    def on_episode_start(self):
+        self._tp_hist = []
+
+    def observe(self):
+        env = self.env
+        if env.chunk_idx == 0:
+            self.on_episode_start()
+            return
+        tp = float(getattr(env, "last_raw_throughput", 0.0))
+        if tp > 0:
+            self._tp_hist.append(tp)
+
+    def _harmonic_kbps(self) -> float:
+        h = self._tp_hist[-5:]
+        if not h:
+            return float(max(getattr(self.env, "last_raw_throughput", 500.0), 10.0))
+        return float(len(h) / np.sum(1.0 / np.maximum(h, 1e-6)))
+
+    def lower_bound_kbps(self) -> float:
+        return max(0.85 * self._harmonic_kbps(), 10.0)
+
+    def max_safe_action(self, proposed: int | None = None) -> int:
+        self.observe()
+        lb = self.lower_bound_kbps()
+        env = self.env
+        k = int(env.chunk_idx)
+        buf = float(env.buffer_level)
+        cap = max(buf - self.cfg.safety_margin, 0.1)
+        hi = int(proposed) if proposed is not None else len(env.BITRATE_LEVELS) - 1
+        for a in range(hi, -1, -1):
+            br = int(env.BITRATE_LEVELS[a])
+            bits = env.get_chunk_size_bits(br, k)
+            dl = bits / (lb * 1000.0 + 1e-6)
+            if dl <= cap:
+                return a
+        return 0
+
+    def project_action(self, proposed: int) -> int:
+        return self.max_safe_action(proposed)
+
+
+class SymmetricTubeMPCPolicy(TubeMPCPolicy):
+    """Multi-horizon tube MPC with symmetric smoothness and max_step_down=1."""
+
+    max_step_down: int = 1
+
+    def __init__(self, env, cfg: ControlArmConfig | None = None, tube_cfg: TubeMPCConfig | None = None):
+        cfg = cfg or ControlArmConfig()
+        tube_cfg = tube_cfg or TubeMPCConfig(
+            horizon=cfg.horizon,
+            safety_margin=cfg.safety_margin,
+            tube=ConformalTubeConfig(horizon=cfg.horizon, use_aci=True),
+        )
+        super().__init__(env, tube_cfg)
+
+    def _filtered_seqs(self, h: int, a_prev: int) -> np.ndarray:
+        seqs = self._seqs(h)
+        ok_rows = []
+        for row in seqs:
+            prev = a_prev
+            good = True
+            for j in range(h):
+                cur = int(row[j])
+                if cur < prev - self.max_step_down:
+                    good = False
+                    break
+                if cur > prev + 1:
+                    good = False
+                    break
+                prev = cur
+            if good:
+                ok_rows.append(row)
+        if not ok_rows:
+            return seqs[:1]
+        return np.asarray(ok_rows, dtype=int)
+
+    def plan_action(self) -> int:
+        env = self.env
+        self._observe_throughput()
+        k = int(env.chunk_idx)
+        a_prev = int(getattr(env, "last_bitrate_idx", 0))
+        h = min(self.cfg.horizon, int(env.max_chunks) - k)
+        if h <= 0:
+            return self.n - 1
+
+        tp_tube = self.tube.horizon_lower_bounds_kbps(h)
+        sizes = self._chunk_sizes(k, h)
+        seqs = self._filtered_seqs(h, a_prev)
+        n_seq = seqs.shape[0]
+        dl = sizes[np.arange(h)[None, :], seqs] / (tp_tube[np.arange(h)] * 1000.0 + 1e-6)
+
+        buf = np.full(n_seq, float(env.buffer_level))
+        prev_u = np.full(n_seq, self.log_u[a_prev])
+        total = np.zeros(n_seq)
+        p = float(env.CHUNK_DURATION)
+        b_max = float(env.BUFFER_MAX)
+        margin = float(self.cfg.safety_margin)
+        safe = np.ones(n_seq, dtype=bool)
+
+        for j in range(h):
+            reb = np.maximum(0.0, dl[:, j] - buf)
+            buf = np.minimum(np.maximum(0.0, buf - dl[:, j]) + p, b_max)
+            safe &= buf >= margin
+            aj = seqs[:, j]
+            lu = self.log_u[aj]
+            sm = np.abs(lu - prev_u)
+            total += lu - self.cfg.reb_penalty * reb - self.cfg.smooth_weight * sm
+            prev_u = lu
+
+        total[~safe] = -1e30
+        return int(seqs[int(np.argmax(total)), 0])
 
 
 class AsymmetricTubeMPCPolicy(TubeMPCPolicy):
@@ -181,14 +316,31 @@ class AsymmetricTubeMPCPolicy(TubeMPCPolicy):
 
 
 class TubeConformalPolicy:
-    """Tube MPC + asymmetric planning, capped by static 1-step safe rung."""
+    """Tube MPC + planning, capped by static 1-step safe rung."""
 
-    def __init__(self, env, base_policy, cfg: ControlArmConfig | None = None):
+    def __init__(
+        self,
+        env,
+        base_policy,
+        cfg: ControlArmConfig | None = None,
+        *,
+        tube_planner: type = AsymmetricTubeMPCPolicy,
+        use_aci: bool = True,
+    ):
         self.env = env
         self.base = base_policy
         self.cfg = cfg or ControlArmConfig()
         self.static = StaticConformalProjector(env, self.cfg)
-        self.tube = AsymmetricTubeMPCPolicy(env, self.cfg)
+        tube_cfg = TubeMPCConfig(
+            horizon=self.cfg.horizon,
+            safety_margin=self.cfg.safety_margin,
+            tube=ConformalTubeConfig(
+                horizon=self.cfg.horizon,
+                use_aci=use_aci,
+                static_conformal=ConformalConfig(alpha=self.cfg.alpha, window=200, k_predict=5),
+            ),
+        )
+        self.tube = tube_planner(env, self.cfg, tube_cfg)
 
     def on_episode_start(self):
         self.static.on_episode_start()
@@ -201,32 +353,52 @@ class TubeConformalPolicy:
         return int(min(a_tube, a_static)), None
 
 
-def configure_env_for_arm(env, arm: HeadlineArm) -> None:
+def configure_env_for_arm(env, arm: EvalArm) -> None:
     env.enable_early_abort = False
 
 
-def make_controlled_policy(env, arm: HeadlineArm, base_policy, cfg: ControlArmConfig | None = None):
+def _wrap_projector(base_policy, proj):
+    class _Wrapped:
+        def on_episode_start(self):
+            proj.on_episode_start()
+
+        def predict(self, obs, deterministic=True):
+            a, _ = base_policy.predict(obs, deterministic=deterministic)
+            return proj.project_action(int(a)), None
+
+    return _Wrapped()
+
+
+def make_controlled_policy(
+    env,
+    arm: EvalArm,
+    base_policy,
+    cfg: ControlArmConfig | None = None,
+):
     cfg = cfg or ControlArmConfig()
     configure_env_for_arm(env, arm)
 
     if arm == "raw":
         return base_policy
 
+    if arm == "heuristic_85":
+        return _wrap_projector(base_policy, Heuristic85Projector(env, cfg))
+
     if arm == "static_conformal":
-        proj = StaticConformalProjector(env, cfg)
+        return _wrap_projector(base_policy, StaticConformalProjector(env, cfg))
 
-        class _Wrapped:
-            def on_episode_start(self):
-                proj.on_episode_start()
+    if arm == "symmetric_tube":
+        return TubeConformalPolicy(
+            env, base_policy, cfg, tube_planner=SymmetricTubeMPCPolicy, use_aci=True
+        )
 
-            def predict(self, obs, deterministic=True):
-                a, _ = base_policy.predict(obs, deterministic=deterministic)
-                return proj.project_action(int(a)), None
-
-        return _Wrapped()
+    if arm == "fixed_alpha_tube":
+        return TubeConformalPolicy(
+            env, base_policy, cfg, tube_planner=AsymmetricTubeMPCPolicy, use_aci=False
+        )
 
     if arm == "tube_conformal":
-        return TubeConformalPolicy(env, base_policy, cfg)
+        return TubeConformalPolicy(env, base_policy, cfg, use_aci=True)
 
     raise ValueError(f"unknown arm: {arm}")
 
