@@ -7,6 +7,22 @@ Extended artifacts: `results/clean_v3_extended/`.
 
 | Trace | Policy | raw | static | tube | p(tube vs static) |
 |---|---|---|---|---|---|
+| `5g_mmwave` | mpc | 0.05 | 0.00 | **0.00** | 1.00e+00 |
+| `5g_mmwave` | greedy | 0.05 | 0.00 | **0.00** | 1.00e+00 |
+| `5g_mmwave` | bba | 0.00 | 0.00 | **0.00** | 1.00e+00 |
+| `5g_mmwave` | bola | 0.00 | 0.00 | **0.00** | 1.00e+00 |
+| `5g_harsh` | mpc | 6.13 | 3.84 | **3.12** | 1.01e-04 |
+| `5g_harsh` | greedy | 68.79 | 7.14 | **4.86** | 1.09e-14 |
+| `5g_harsh` | bba | 6.91 | 3.74 | **3.28** | 4.89e-03 |
+| `5g_harsh` | bola | 6.90 | 3.42 | **2.71** | 2.23e-04 |
+| `norway_vehicular` | mpc | 5.13 | 0.79 | **0.65** | 1.30e-03 |
+| `norway_vehicular` | greedy | 923.76 | 1.40 | **0.62** | 4.79e-26 |
+| `norway_vehicular` | bba | 70.60 | 1.22 | **0.61** | 3.83e-22 |
+| `norway_vehicular` | bola | 19.18 | 0.97 | **0.60** | 9.24e-10 |
+| `fcc_fixed` | mpc | 9.69 | 2.60 | **1.95** | 3.09e-02 |
+| `fcc_fixed` | greedy | 976.74 | 3.60 | **3.57** | 7.68e-06 |
+| `fcc_fixed` | bba | 98.84 | 2.59 | **2.70** | 1.47e-02 |
+| `fcc_fixed` | bola | 18.10 | 1.96 | **2.13** | 3.39e-03 |
 
 ## Task 3 — Content complexity (VBR / SI-TI strata)
 
@@ -14,27 +30,31 @@ Videos grouped by `siti_summary.csv` motion/complexity labels and VBR chunk-size
 
 | Stratum | Videos | Δ rebuffer (tube−static) s/ep | Δ smoothness (tube−static) | n episodes |
 |---|---|---|---|---|
-| `low_medium` | ducks, into_tree, kristen_and_sara, old_town_cross, sintel, sunflower | -0.892 [-1.118, -0.682] | -0.2486 | 824 |
-| `high_vbr_motion` | bigbuckbunny, cosmos, elephants_dream, parkjoy, rush_hour, tearsofsteel | -1.042 [-1.270, -0.821] | -0.2582 | 808 |
+| `low_medium` | into_tree, kristen_and_sara, old_town_cross, sintel, sunflower | -0.883 [-1.121, -0.652] | -0.2504 | 704 |
+| `high_vbr_motion` | bigbuckbunny, cosmos, ducks, elephants_dream, parkjoy, rush_hour, tearsofsteel | -1.030 [-1.238, -0.827] | -0.2556 | 928 |
 
 ## Task 4 — Component ablation (`test_traces_5g_markov`, bba & bola)
 
 | Policy | raw | heur. 0.85 | static H=1 | sym. tube | fixed-α tube | **tube (proposed)** |
 |---|---|---|---|---|---|---|
+| bba | 10.06 | 7.89 | 4.35 | 2.61 | 3.11 | **3.25** |
+| bola | 9.42 | 6.84 | 4.11 | 2.30 | 3.06 | **2.95** |
 
 ### Horizon sweep (tube, α=0.10)
 
-| Policy | H=1 | H=2 | H=3 | H=5 | H=8 |
-|---|---|---|---|---|---|
-| bba | — | — | — | — | — |
-| bola | — | — | — | — | — |
+| Policy | H=1 | H=2 | H=3 | H=5 |
+|---|---|---|---|---|
+| bba | 0.27 | 0.27 | 0.95 | 3.25 |
+| bola | 0.12 | 0.12 | 0.81 | 3.01 |
 
 ### α sweep (tube, H=5)
 
 | Policy | α=0.05 | α=0.10 | α=0.15 | α=0.20 |
 |---|---|---|---|---|
-| bba | — | — | — | — |
-| bola | — | — | — | — |
+| bba | 2.88 | 3.18 | 3.63 | 3.75 |
+| bola | 2.62 | 3.01 | 3.27 | 3.66 |
+
+### Extended statistics on headline `clean_v3`
 
 ## Task 4 — Extended statistics (`results/clean_v3/`)
 

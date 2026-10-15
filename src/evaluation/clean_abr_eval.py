@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import random
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import asdict
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -124,6 +127,34 @@ def run_episode(
     return row
 
 
+def _run_arm_episode_batch(
+    policy_kind: str,
+    trace_dir: str,
+    arm: str,
+    episode_ids: list[int],
+    cfg_dict: dict | None,
+    time_decisions: bool,
+) -> list[dict]:
+    cfg = ControlArmConfig(**cfg_dict) if cfg_dict else None
+    env = build_env(Path(trace_dir), arm)  # type: ignore[arg-type]
+    base = make_policy(policy_kind, env, None, False)
+    controlled = make_controlled_policy(env, arm, base, cfg)  # type: ignore[arg-type]
+    return [
+        run_episode(env, controlled, ep, time_decisions=time_decisions) for ep in episode_ids
+    ]
+
+
+def default_eval_workers() -> int:
+    """Episode parallelism; keep headroom for other services on shared hosts."""
+    raw = os.environ.get("CLEAN_V3_EXT_WORKERS", "").strip()
+    if raw.isdigit():
+        return max(1, int(raw))
+    cpus = os.cpu_count() or 4
+    reserved = int(os.environ.get("CLEAN_V3_EXT_RESERVED_CPUS", "2"))
+    cap = int(os.environ.get("CLEAN_V3_EXT_MAX_WORKERS", "2"))
+    return max(1, min(cap, cpus - max(0, reserved)))
+
+
 def run_arm(
     policy_kind: str,
     trace_dir: Path,
@@ -132,14 +163,33 @@ def run_arm(
     cfg: ControlArmConfig | None = None,
     *,
     time_decisions: bool = False,
+    workers: int | None = None,
 ) -> list[dict]:
-    env = build_env(trace_dir, arm)
-    base = make_policy(policy_kind, env, None, False)
-    controlled = make_controlled_policy(env, arm, base, cfg)
-    return [
-        run_episode(env, controlled, ep, time_decisions=time_decisions)
-        for ep in range(episodes)
+    n_workers = workers if workers is not None else default_eval_workers()
+    if n_workers <= 1 or episodes <= 1:
+        env = build_env(trace_dir, arm)
+        base = make_policy(policy_kind, env, None, False)
+        controlled = make_controlled_policy(env, arm, base, cfg)
+        return [
+            run_episode(env, controlled, ep, time_decisions=time_decisions)
+            for ep in range(episodes)
+        ]
+
+    ep_ids = list(range(episodes))
+    chunk = max(1, (episodes + n_workers - 1) // n_workers)
+    chunks = [ep_ids[i : i + chunk] for i in range(0, episodes, chunk)]
+    n_workers = min(n_workers, len(chunks))
+    cfg_dict = asdict(cfg) if cfg else None
+    task_args = [
+        (policy_kind, str(trace_dir), arm, ids, cfg_dict, time_decisions) for ids in chunks
     ]
+    rows: list[dict] = []
+    with ProcessPoolExecutor(max_workers=n_workers) as pool:
+        futures = [pool.submit(_run_arm_episode_batch, *args) for args in task_args]
+        for fut in as_completed(futures):
+            rows.extend(fut.result())
+    rows.sort(key=lambda r: int(r["episode"]))
+    return rows
 
 
 def pair_comp(all_rows: dict[str, list[dict]], treat: str, ref: str) -> dict:

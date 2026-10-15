@@ -49,7 +49,23 @@ tmux new -s clean_v3
 # run section 4 inside the session
 ```
 
-## 6. Copy results off the server (optional)
+## 6. Extended validation (`clean_v3_extended`)
+
+```bash
+python data/prepare_eval_trace_subsets.py
+bash experiments/paper2/run_extended_validation.sh
+```
+
+Deploy/restart on **tools-new** (SSH host `tools-new`): `python scripts/paper2/deploy_extended_tools_new.py`  
+Status: `python scripts/paper2/status_extended_server.py`
+
+Pull artifacts: `rsync -avz tools-new:/root/CPS-Paper2/results/clean_v3_extended/ results/clean_v3_extended/`  
+Regenerate report locally (needs `results/clean_v3/`):  
+`python src/evaluation/run_extended_validation.py --report-only --latency-episodes 17`
+
+Report: `docs/reports/clean_v3_extended_validation.md`
+
+## 7. Copy results off the server (optional)
 
 ```bash
 rsync -avz results/clean_v3/ user@laptop:~/CPS-Paper2/results/clean_v3/

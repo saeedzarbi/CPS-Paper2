@@ -26,6 +26,7 @@ from src.evaluation.clean_abr_eval import (
     EXTENDED_TRACE_SETS,
     HEADLINE_TRACE_SETS,
     build_env,
+    default_eval_workers,
     episode_cvar95,
     load_episodes_csv,
     load_summary,
@@ -34,6 +35,7 @@ from src.evaluation.clean_abr_eval import (
     run_arm,
     write_job_out,
 )
+from src.utils.mattermost_notify import notify as mattermost_notify
 
 P = get_paths()
 RESULTS_EXT = ROOT / "results" / "clean_v3_extended"
@@ -43,8 +45,30 @@ REPORT = ROOT / "docs" / "reports" / "clean_v3_extended_validation.md"
 OOD_ARMS = tuple(HEADLINE_ARMS)
 OOD_POLICIES = ("mpc", "greedy", "bba", "bola")
 ABLATION_POLICIES = ("bba", "bola")
-HORIZONS = (1, 2, 3, 5, 8)
+# H=8 omitted: full tube MPC enumerates 6^8 sequences per chunk (infeasible at 204 eps).
+HORIZONS = (1, 2, 3, 5)
 ALPHAS = (0.05, 0.10, 0.15, 0.20)
+MM_USER = "clean_v3_extended"
+
+
+def _mm(text: str) -> None:
+    mattermost_notify(text, username=MM_USER)
+
+
+def _notify_job_done(label: str, out_dir: Path) -> None:
+    summary = load_summary(out_dir / "summary.json")
+    if not summary:
+        _mm(f":white_check_mark: `{label}` done")
+        return
+    arms = summary.get("arms", {})
+    tube = arms.get("tube_conformal", {}).get("rebuffer_total", {}).get("mean")
+    static = arms.get("static_conformal", {}).get("rebuffer_total", {}).get("mean")
+    if tube is not None and static is not None:
+        _mm(f":white_check_mark: `{label}` reb tube={tube:.2f}s static={static:.2f}s")
+    elif tube is not None:
+        _mm(f":white_check_mark: `{label}` tube reb={tube:.2f}s")
+    else:
+        _mm(f":white_check_mark: `{label}` done")
 
 
 def _ensure_subsets() -> None:
@@ -90,7 +114,12 @@ def _content_strata() -> dict[str, str]:
     return strata
 
 
-def run_ood_suite(episodes: int) -> None:
+def _job_done(out_dir: Path) -> bool:
+    p = out_dir / "summary.json"
+    return p.is_file() and p.stat().st_size > 20
+
+
+def run_ood_suite(episodes: int, workers: int) -> None:
     _ensure_subsets()
     for trace_key, trace_dir in EXTENDED_TRACE_SETS.items():
         if not trace_dir.is_dir() or not any(trace_dir.glob("*.json")):
@@ -98,31 +127,44 @@ def run_ood_suite(episodes: int) -> None:
             continue
         for policy in OOD_POLICIES:
             out = RESULTS_EXT / "ood" / trace_key / policy
+            if _job_done(out):
+                print(f"[skip] done: ood/{trace_key}/{policy}")
+                continue
             all_rows: dict[str, list] = {}
             for arm in OOD_ARMS:
                 print(f"[ood] {trace_key} {policy} {arm} n={episodes}")
-                all_rows[arm] = run_arm(policy, trace_dir, arm, episodes)
+                all_rows[arm] = run_arm(policy, trace_dir, arm, episodes, workers=workers)
             write_job_out(out, all_rows, policy, trace_key)
+            _notify_job_done(f"ood/{trace_key}/{policy}", out)
 
 
-def run_ablation(episodes: int) -> None:
+def run_ablation(episodes: int, workers: int) -> None:
     trace_dir = HEADLINE_TRACE_SETS["5g_markov"]
     for policy in ABLATION_POLICIES:
         out = RESULTS_EXT / "ablation" / policy
+        if _job_done(out):
+            print(f"[skip] done: ablation/{policy}")
+            continue
         all_rows: dict[str, list] = {}
         for arm in ABLATION_ARMS:
             print(f"[ablation] {policy} {arm} n={episodes}")
-            all_rows[arm] = run_arm(policy, trace_dir, arm, episodes)
+            all_rows[arm] = run_arm(policy, trace_dir, arm, episodes, workers=workers)
         write_job_out(out, all_rows, policy, "5g_markov")
+        _notify_job_done(f"ablation/{policy}", out)
 
 
-def run_sensitivity(episodes: int) -> None:
+def run_sensitivity(episodes: int, workers: int) -> None:
     trace_dir = HEADLINE_TRACE_SETS["5g_markov"]
     for policy in ABLATION_POLICIES:
         for h in HORIZONS:
             cfg = ControlArmConfig(horizon=h, alpha=0.10)
             out = RESULTS_EXT / "sensitivity" / "horizon" / f"{policy}_H{h}"
-            rows = run_arm(policy, trace_dir, "tube_conformal", episodes, cfg)
+            if _job_done(out):
+                print(f"[skip] done: sensitivity/horizon/{policy}_H{h}")
+                continue
+            rows = run_arm(
+                policy, trace_dir, "tube_conformal", episodes, cfg, workers=workers
+            )
             write_job_out(
                 out,
                 {"tube_conformal": rows},
@@ -130,10 +172,16 @@ def run_sensitivity(episodes: int) -> None:
                 "5g_markov",
                 meta={"horizon": h, "alpha": 0.10},
             )
+            _notify_job_done(f"sensitivity/H{h}/{policy}", out)
         for alpha in ALPHAS:
             cfg = ControlArmConfig(horizon=5, alpha=alpha)
             out = RESULTS_EXT / "sensitivity" / "alpha" / f"{policy}_a{alpha:.2f}"
-            rows = run_arm(policy, trace_dir, "tube_conformal", episodes, cfg)
+            if _job_done(out):
+                print(f"[skip] done: sensitivity/alpha/{policy}_a{alpha:.2f}")
+                continue
+            rows = run_arm(
+                policy, trace_dir, "tube_conformal", episodes, cfg, workers=workers
+            )
             write_job_out(
                 out,
                 {"tube_conformal": rows},
@@ -141,6 +189,7 @@ def run_sensitivity(episodes: int) -> None:
                 "5g_markov",
                 meta={"horizon": 5, "alpha": alpha},
             )
+            _notify_job_done(f"sensitivity/a={alpha:.2f}/{policy}", out)
 
 
 def _load_v3_episode_pairs(job: str) -> list[tuple[int, float, float, float, float]]:
@@ -208,7 +257,7 @@ def content_stratification_section() -> list[str]:
     return lines
 
 
-def extended_stats_section(latency_episodes: int) -> list[str]:
+def extended_stats_section(latency_episodes: int, workers: int) -> list[str]:
     lines = [
         "## Task 4 — Extended statistics (`results/clean_v3/`)",
         "",
@@ -245,6 +294,7 @@ def extended_stats_section(latency_episodes: int) -> list[str]:
                 min(latency_episodes, CPS_EPISODES),
                 cfg,
                 time_decisions=True,
+                workers=workers,
             )
             lat_cache[pol] = float(np.mean([r.get("decision_latency_us_mean", float("nan")) for r in rows]))
         lat = lat_cache.get(pol, float("nan"))
@@ -303,7 +353,12 @@ def ablation_section() -> list[str]:
 
 
 def sensitivity_section() -> list[str]:
-    lines = ["### Horizon sweep (tube, α=0.10)", "", "| Policy | H=1 | H=2 | H=3 | H=5 | H=8 |", "|---|---|---|---|---|---|"]
+    lines = [
+        "### Horizon sweep (tube, α=0.10)",
+        "",
+        "| Policy | H=1 | H=2 | H=3 | H=5 |",
+        "|---|---|---|---|---|",
+    ]
     for policy in ABLATION_POLICIES:
         cells = []
         for h in HORIZONS:
@@ -332,7 +387,7 @@ def sensitivity_section() -> list[str]:
     return lines
 
 
-def write_report(latency_episodes: int) -> None:
+def write_report(latency_episodes: int, workers: int) -> None:
     lines = [
         "# Clean ABR — extended validation (`clean_v3_extended`)",
         "",
@@ -346,7 +401,7 @@ def write_report(latency_episodes: int) -> None:
     lines += sensitivity_section()
     lines.append("### Extended statistics on headline `clean_v3`")
     lines.append("")
-    lines += extended_stats_section(latency_episodes)
+    lines += extended_stats_section(latency_episodes, workers)
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text("\n".join(lines), encoding="utf-8")
     print(f"Wrote {REPORT}")
@@ -365,22 +420,36 @@ def main() -> int:
     ap.add_argument("--skip-ablation", action="store_true")
     ap.add_argument("--skip-sweeps", action="store_true")
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Parallel episode workers (default: env CLEAN_V3_EXT_* caps; see server_runs.md)",
+    )
     args = ap.parse_args()
+    workers = args.workers if args.workers is not None else default_eval_workers()
     (RESULTS_EXT / "logs").mkdir(parents=True, exist_ok=True)
 
     if not args.report_only:
+        _mm(
+            f":rocket: **clean_v3_extended** start | episodes={args.episodes} "
+            f"workers={workers} latency_eps={args.latency_episodes}"
+        )
         if not args.skip_ood:
-            run_ood_suite(args.episodes)
+            run_ood_suite(args.episodes, workers)
         if not args.skip_ablation:
-            run_ablation(args.episodes)
+            run_ablation(args.episodes, workers)
         if not args.skip_sweeps:
-            run_sensitivity(args.episodes)
+            run_sensitivity(args.episodes, workers)
 
-    write_report(args.latency_episodes)
+    write_report(args.latency_episodes, workers)
     subprocess.check_call(
         [sys.executable, str(ROOT / "scripts" / "paper2" / "generate_clean_v3_report.py")],
         cwd=str(ROOT),
     )
+    if not args.report_only:
+        n = len(list(RESULTS_EXT.rglob("summary.json")))
+        _mm(f":checkered_flag: **clean_v3_extended** finished | summaries={n} report=`{REPORT.name}`")
     return 0
 
 

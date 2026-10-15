@@ -18,7 +18,7 @@ def resolve_webhook_url() -> str | None:
     if url:
         return url
     if WEBHOOK_FILE.is_file():
-        return WEBHOOK_FILE.read_text(encoding="utf-8").strip()
+        return WEBHOOK_FILE.read_text(encoding="utf-8").strip().strip("\r")
     return None
 
 
