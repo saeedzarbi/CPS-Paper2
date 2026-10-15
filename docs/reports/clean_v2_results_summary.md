@@ -3,7 +3,7 @@
 **Setup:** `CleanABREnv`, 204 paired episodes, `log_utility` reward.  
 **Traces:** `test_traces_5g_markov` (50 Markov LoS/NLoS/Outage), `test_traces_v18` (broadband).  
 **Hosts:** greedy, bba, bola, mpc.  
-**Arms:** `raw`, `static_conformal`, `tube_conformal`, `two_timescale_conformal` (tube + intra-chunk early abort).
+**Arms:** `raw`, `static_conformal`, `tube_conformal` (+ legacy `two_timescale` in v2 only). See **`clean_v3`** for headline 3-arm results.
 
 Artifacts: `results/clean_v2/<policy>_{5g_markov,bb}/summary.json`
 

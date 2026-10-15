@@ -24,6 +24,7 @@ SYNC_REL = [
     "src/environment/paper2_abr_env.py",
     "src/control/two_timescale_conformal.py",
     "src/control/__init__.py",
+    "scripts/paper2/generate_clean_v3_report.py",
     "src/evaluation/eval_certified_shield_v18.py",
     "src/training/certified_perceptual_shield.py",
     "src/training/aci_perceptual_shield.py",
@@ -105,7 +106,7 @@ def main() -> int:
     run(
         client,
         f"screen -dmS clean_v2 bash -lc 'cd {REMOTE} && source .venv/bin/activate && "
-        f"export PYTHONPATH={REMOTE} PYTHONIOENCODING=utf-8 CLEAN_CAMPAIGN=clean_v2 && "
+        f"export PYTHONPATH={REMOTE} PYTHONIOENCODING=utf-8 CLEAN_CAMPAIGN=clean_v3 && "
         f"bash experiments/paper2/run_clean_campaign.sh 2>&1 | tee -a results/clean_v2/logs/campaign_$(date +%Y%m%d_%H%M%S).log'",
     )
     time.sleep(6)

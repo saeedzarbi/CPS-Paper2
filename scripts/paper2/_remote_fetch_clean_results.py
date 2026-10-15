@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,13 +11,13 @@ import paramiko
 
 ROOT = Path(__file__).resolve().parents[2]
 REMOTE = "/root/CPS-Paper2"
-CAMPAIGN = "clean_v2"
+CAMPAIGN = os.environ.get("CLEAN_CAMPAIGN", "clean_v3")
 REMOTE_BASE = f"{REMOTE}/results/{CAMPAIGN}"
 LOCAL_BASE = ROOT / "results" / CAMPAIGN
 
 POLICIES = ("mpc", "greedy", "bba", "bola")
 TRACES = ("5g_markov", "bb")
-ARMS = ("raw", "static_conformal", "tube_conformal", "two_timescale_conformal")
+ARMS = ("raw", "static_conformal", "tube_conformal")
 
 
 def creds() -> tuple[str, str, str]:
@@ -69,10 +70,14 @@ def main() -> int:
         print("-" * len(hdr))
         for pol in POLICIES:
             sp = LOCAL_BASE / f"{pol}_{tr}" / "summary.json"
-            if not sp.is_file():
+            if not sp.is_file() or sp.stat().st_size < 2:
                 print(f"{pol:<8} (no summary)")
                 continue
-            s = json.loads(sp.read_text(encoding="utf-8"))
+            try:
+                s = json.loads(sp.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                print(f"{pol:<8} (invalid summary)")
+                continue
             arms = s.get("arms", {})
             vals = []
             for arm in ARMS:
@@ -84,7 +89,7 @@ def main() -> int:
         print()
 
     print(f"Saved under: {LOCAL_BASE} ({fetched} summaries)")
-    return 0 if fetched else 1
+    return 0 if fetched > 0 else 1
 
 
 if __name__ == "__main__":
