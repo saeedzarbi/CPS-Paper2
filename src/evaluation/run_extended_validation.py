@@ -48,7 +48,22 @@ ABLATION_POLICIES = ("bba", "bola")
 # H=8 omitted: full tube MPC enumerates 6^8 sequences per chunk (infeasible at 204 eps).
 HORIZONS = (1, 2, 3, 5)
 ALPHAS = (0.05, 0.10, 0.15, 0.20)
+REPORT_PROTOCOL = "clean_v3_extended_v2"
 MM_USER = "clean_v3_extended"
+
+HEADLINE_ARM_LABELS = {
+    "raw": "raw",
+    "static_conformal": "static",
+    "tube_conformal": "tube",
+}
+ABLATION_COL_LABELS = {
+    "raw": "raw",
+    "heuristic_85": "heur. 0.85",
+    "static_conformal": "static H=1",
+    "symmetric_tube": "sym. tube",
+    "fixed_alpha_tube": "fixed-α tube",
+    "tube_conformal": "tube (proposed)",
+}
 
 
 def _mm(text: str) -> None:
@@ -114,9 +129,52 @@ def _content_strata() -> dict[str, str]:
     return strata
 
 
-def _job_done(out_dir: Path) -> bool:
+def _job_done(out_dir: Path, protocol: str | None = None) -> bool:
     p = out_dir / "summary.json"
-    return p.is_file() and p.stat().st_size > 20
+    if not p.is_file() or p.stat().st_size <= 20:
+        return False
+    if protocol is None:
+        return True
+    summary = load_summary(p)
+    return bool(summary and summary.get("meta", {}).get("protocol") == protocol)
+
+
+def _metric_mean(summary: dict, arm: str, key: str) -> float:
+    try:
+        return float(summary["arms"][arm][key]["mean"])
+    except (KeyError, TypeError):
+        return float("nan")
+
+
+def _best_arm(values: dict[str, float], *, lower_better: bool) -> str | None:
+    valid = {a: v for a, v in values.items() if v == v}
+    if not valid:
+        return None
+    if lower_better:
+        return min(valid, key=valid.get)
+    return max(valid, key=valid.get)
+
+
+def _fmt_val(v: float, decimals: int = 2) -> str:
+    return f"{v:.{decimals}f}" if v == v else "—"
+
+
+def _fmt_arm_cells(
+    arms: tuple[str, ...],
+    values: dict[str, float],
+    *,
+    lower_better: bool,
+    decimals: int = 2,
+) -> list[str]:
+    best = _best_arm(values, lower_better=lower_better)
+    out = []
+    for arm in arms:
+        v = values.get(arm, float("nan"))
+        txt = _fmt_val(v, decimals)
+        if arm == best and v == v:
+            txt = f"**{txt}**"
+        out.append(txt)
+    return out
 
 
 def run_ood_suite(episodes: int, workers: int) -> None:
@@ -127,14 +185,21 @@ def run_ood_suite(episodes: int, workers: int) -> None:
             continue
         for policy in OOD_POLICIES:
             out = RESULTS_EXT / "ood" / trace_key / policy
-            if _job_done(out):
+            need_proto = trace_key == "5g_stress_v14"
+            if _job_done(out, REPORT_PROTOCOL if need_proto else None):
                 print(f"[skip] done: ood/{trace_key}/{policy}")
                 continue
             all_rows: dict[str, list] = {}
             for arm in OOD_ARMS:
                 print(f"[ood] {trace_key} {policy} {arm} n={episodes}")
                 all_rows[arm] = run_arm(policy, trace_dir, arm, episodes, workers=workers)
-            write_job_out(out, all_rows, policy, trace_key)
+            write_job_out(
+                out,
+                all_rows,
+                policy,
+                trace_key,
+                protocol=REPORT_PROTOCOL if need_proto else None,
+            )
             _notify_job_done(f"ood/{trace_key}/{policy}", out)
 
 
@@ -142,14 +207,14 @@ def run_ablation(episodes: int, workers: int) -> None:
     trace_dir = HEADLINE_TRACE_SETS["5g_markov"]
     for policy in ABLATION_POLICIES:
         out = RESULTS_EXT / "ablation" / policy
-        if _job_done(out):
+        if _job_done(out, REPORT_PROTOCOL):
             print(f"[skip] done: ablation/{policy}")
             continue
         all_rows: dict[str, list] = {}
         for arm in ABLATION_ARMS:
             print(f"[ablation] {policy} {arm} n={episodes}")
             all_rows[arm] = run_arm(policy, trace_dir, arm, episodes, workers=workers)
-        write_job_out(out, all_rows, policy, "5g_markov")
+        write_job_out(out, all_rows, policy, "5g_markov", protocol=REPORT_PROTOCOL)
         _notify_job_done(f"ablation/{policy}", out)
 
 
@@ -157,20 +222,29 @@ def run_sensitivity(episodes: int, workers: int) -> None:
     trace_dir = HEADLINE_TRACE_SETS["5g_markov"]
     for policy in ABLATION_POLICIES:
         for h in HORIZONS:
-            cfg = ControlArmConfig(horizon=h, alpha=0.10)
             out = RESULTS_EXT / "sensitivity" / "horizon" / f"{policy}_H{h}"
-            if _job_done(out):
+            if _job_done(out, REPORT_PROTOCOL):
                 print(f"[skip] done: sensitivity/horizon/{policy}_H{h}")
                 continue
-            rows = run_arm(
-                policy, trace_dir, "tube_conformal", episodes, cfg, workers=workers
-            )
+            if h == 1:
+                cfg = ControlArmConfig(horizon=1, alpha=0.10)
+                rows = run_arm(
+                    policy, trace_dir, "static_conformal", episodes, cfg, workers=workers
+                )
+                meta = {"horizon": h, "alpha": 0.10, "arm": "static_conformal"}
+            else:
+                cfg = ControlArmConfig(horizon=h, alpha=0.10, horizon_ref=5)
+                rows = run_arm(
+                    policy, trace_dir, "tube_conformal", episodes, cfg, workers=workers
+                )
+                meta = {"horizon": h, "alpha": 0.10, "arm": "tube_conformal"}
             write_job_out(
                 out,
                 {"tube_conformal": rows},
                 policy,
                 "5g_markov",
-                meta={"horizon": h, "alpha": 0.10},
+                meta=meta,
+                protocol=REPORT_PROTOCOL,
             )
             _notify_job_done(f"sensitivity/H{h}/{policy}", out)
         for alpha in ALPHAS:
@@ -188,6 +262,7 @@ def run_sensitivity(episodes: int, workers: int) -> None:
                 policy,
                 "5g_markov",
                 meta={"horizon": 5, "alpha": alpha},
+                protocol=REPORT_PROTOCOL,
             )
             _notify_job_done(f"sensitivity/a={alpha:.2f}/{policy}", out)
 
@@ -257,18 +332,23 @@ def content_stratification_section() -> list[str]:
     return lines
 
 
+def _trace_dir_for_v3_job(job: str) -> Path:
+    return HEADLINE_TRACE_SETS["bb"] if job.endswith("_bb") else HEADLINE_TRACE_SETS["5g_markov"]
+
+
 def extended_stats_section(latency_episodes: int, workers: int) -> list[str]:
     lines = [
         "## Task 4 — Extended statistics (`results/clean_v3/`)",
         "",
-        "Paired bootstrap 10k resamples for tube − static; CVaR₉₅ on episode rebuffer; zero-stall rate; decision latency (profiling pass).",
+        "Paired bootstrap 10k resamples for tube − static; CVaR₉₅ on episode rebuffer; zero-stall rate; "
+        "decision latency (`perf_counter_ns`, mean μs per chunk).",
         "",
-        "| Job | Δ rebuffer [95% CI] | Δ smoothness [95% CI] | CVaR₉₅ tube | CVaR₉₅ static | Zero-stall % tube | Latency μs (tube) |",
+        "| Job | Δ rebuffer [95% CI] | Δ smoothness [95% CI] | CVaR₉₅ tube | CVaR₉₅ static | "
+        "Zero-stall % tube | Latency μs (tube) [static] |",
         "|---|---|---|---|---|---|---|",
     ]
     jobs = [f"{p}_{t}" for p in OOD_POLICIES for t in ("5g_markov", "bb")]
-    trace_dir = HEADLINE_TRACE_SETS["5g_markov"]
-    lat_cache: dict[str, float] = {}
+    lat_cache: dict[tuple[str, str], tuple[float, float]] = {}
 
     for job in jobs:
         pairs = _load_v3_episode_pairs(job)
@@ -284,46 +364,100 @@ def extended_stats_section(latency_episodes: int, workers: int) -> list[str]:
         cvar_s = episode_cvar95(reb_s)
         zst = 100.0 * float(np.mean([r <= 1e-6 for r in reb_t]))
 
-        pol = job.split("_")[0]
-        if pol not in lat_cache and latency_episodes > 0:
+        if job.endswith("_bb"):
+            pol, trace_key = job[: -len("_bb")], "bb"
+        elif job.endswith("_5g_markov"):
+            pol, trace_key = job[: -len("_5g_markov")], "5g_markov"
+        else:
+            pol, trace_key = job, "5g_markov"
+        lat_key = (pol, trace_key)
+        if lat_key not in lat_cache and latency_episodes > 0:
             cfg = ControlArmConfig()
-            rows = run_arm(
+            n_eps = min(latency_episodes, CPS_EPISODES)
+            trace_dir = _trace_dir_for_v3_job(job)
+            tube_rows = run_arm(
                 pol,
                 trace_dir,
                 "tube_conformal",
-                min(latency_episodes, CPS_EPISODES),
+                n_eps,
                 cfg,
                 time_decisions=True,
                 workers=workers,
             )
-            lat_cache[pol] = float(np.mean([r.get("decision_latency_us_mean", float("nan")) for r in rows]))
-        lat = lat_cache.get(pol, float("nan"))
-        lat_s = f"{lat:.1f}" if lat == lat else "—"
+            static_rows = run_arm(
+                pol,
+                trace_dir,
+                "static_conformal",
+                n_eps,
+                cfg,
+                time_decisions=True,
+                workers=workers,
+            )
+            lat_t = float(
+                np.mean([r.get("decision_latency_us_mean", float("nan")) for r in tube_rows])
+            )
+            lat_s = float(
+                np.mean([r.get("decision_latency_us_mean", float("nan")) for r in static_rows])
+            )
+            lat_cache[lat_key] = (lat_t, lat_s)
+        lat_t, lat_s = lat_cache.get(lat_key, (float("nan"), float("nan")))
+        if lat_t == lat_t and lat_s == lat_s:
+            lat_cell = f"{lat_t:.1f} [{lat_s:.1f}]"
+        elif lat_t == lat_t:
+            lat_cell = f"{lat_t:.1f} [—]"
+        else:
+            lat_cell = "—"
         lines.append(
             f"| `{job}` | {dr:.3f} [{lo:.3f}, {hi:.3f}] | {ds:.4f} [{slo:.4f}, {shi:.4f}] | "
-            f"{cvar_t:.2f} | {cvar_s:.2f} | {zst:.1f}% | {lat_s} |"
+            f"{cvar_t:.2f} | {cvar_s:.2f} | {zst:.1f}% | {lat_cell} |"
         )
     lines.append("")
     return lines
 
 
-def ood_section() -> list[str]:
-    lines = ["## Task 2 — OOD & mobility generalization", "", "| Trace | Policy | raw | static | tube | p(tube vs static) |", "|---|---|---|---|---|---|"]
+def _ood_metric_table(metric_key: str, title: str, *, lower_better: bool, decimals: int = 2) -> list[str]:
+    lines = [f"#### {title}", ""]
+    hdr = "| Trace | Policy | " + " | ".join(HEADLINE_ARM_LABELS[a] for a in OOD_ARMS) + " | p(tube vs static) |"
+    lines.append(hdr)
+    lines.append("|" + "---|" * (len(OOD_ARMS) + 3))
     for trace_key in EXTENDED_TRACE_SETS:
         for policy in OOD_POLICIES:
             s = load_summary(RESULTS_EXT / "ood" / trace_key / policy / "summary.json")
             if not s:
                 continue
-            arms = s.get("arms", {})
-            def m(a):
-                return arms.get(a, {}).get("rebuffer_total", {}).get("mean", float("nan"))
-
+            vals = {a: _metric_mean(s, a, metric_key) for a in OOD_ARMS}
+            cells = _fmt_arm_cells(OOD_ARMS, vals, lower_better=lower_better, decimals=decimals)
             comp = s.get("comparisons", {}).get("tube_conformal_vs_static_conformal", {})
-            p = comp.get("rebuffer_total", {}).get("wilcoxon_p", float("nan"))
-            lines.append(
-                f"| `{trace_key}` | {policy} | {m('raw'):.2f} | {m('static_conformal'):.2f} | "
-                f"**{m('tube_conformal'):.2f}** | {p:.2e} |"
-            )
+            p = comp.get(metric_key, {}).get("wilcoxon_p", float("nan"))
+            ps = f"{p:.2e}" if p == p else "—"
+            lines.append(f"| `{trace_key}` | {policy} | " + " | ".join(cells) + f" | {ps} |")
+    lines.append("")
+    return lines
+
+
+def ood_section() -> list[str]:
+    lines = [
+        "## Task 2 — OOD & mobility generalization",
+        "",
+        "Headline arms on extended trace sets. **Bold** = best in row (rebuffer & smoothness: minimum; QoE: maximum).",
+        "",
+    ]
+    lines += _ood_metric_table("rebuffer_total", "Mean rebuffer (s/ep)", lower_better=True)
+    lines += _ood_metric_table("smooth_penalty_mean", "Mean smoothness (|Δlog u|)", lower_better=True, decimals=2)
+    lines += _ood_metric_table("episodic_qoe", "Mean episodic QoE", lower_better=False)
+    return lines
+
+
+def _ablation_metric_table(metric_key: str, title: str, *, lower_better: bool, decimals: int = 2) -> list[str]:
+    labels = [ABLATION_COL_LABELS[a] for a in ABLATION_ARMS]
+    lines = [f"#### {title}", "", "| Policy | " + " | ".join(labels) + " |", "|---|" + "---|" * len(ABLATION_ARMS)]
+    for policy in ABLATION_POLICIES:
+        s = load_summary(RESULTS_EXT / "ablation" / policy / "summary.json")
+        if not s:
+            continue
+        vals = {a: _metric_mean(s, a, metric_key) for a in ABLATION_ARMS}
+        cells = _fmt_arm_cells(ABLATION_ARMS, vals, lower_better=lower_better, decimals=decimals)
+        lines.append(f"| {policy} | " + " | ".join(cells) + " |")
     lines.append("")
     return lines
 
@@ -332,45 +466,53 @@ def ablation_section() -> list[str]:
     lines = [
         "## Task 4 — Component ablation (`test_traces_5g_markov`, bba & bola)",
         "",
-        "| Policy | raw | heur. 0.85 | static H=1 | sym. tube | fixed-α tube | **tube (proposed)** |",
-        "|---|---|---|---|---|---|---|",
+        "`sym. tube`: symmetric ±1-tier rate limits (no static emergency cap). "
+        "`fixed-α tube`: fixed α₀ bounds without online ACI updates.",
+        "",
     ]
-    arm_cols = ABLATION_ARMS
-    for policy in ABLATION_POLICIES:
-        s = load_summary(RESULTS_EXT / "ablation" / policy / "summary.json")
-        if not s:
-            continue
-        cells = []
-        for arm in arm_cols:
-            v = s.get("arms", {}).get(arm, {}).get("rebuffer_total", {}).get("mean", float("nan"))
-            txt = f"{v:.2f}" if v == v else "—"
-            if arm == "tube_conformal":
-                txt = f"**{txt}**"
-            cells.append(txt)
-        lines.append(f"| {policy} | " + " | ".join(cells) + " |")
-    lines.append("")
+    lines += _ablation_metric_table("rebuffer_total", "Mean rebuffer (s/ep)", lower_better=True)
+    lines += _ablation_metric_table("smooth_penalty_mean", "Mean smoothness (|Δlog u|)", lower_better=True)
+    lines += _ablation_metric_table("episodic_qoe", "Mean episodic QoE", lower_better=False)
     return lines
+
+
+def _horizon_metric(policy: str, h: int, metric_key: str) -> float:
+    s = load_summary(RESULTS_EXT / "sensitivity" / "horizon" / f"{policy}_H{h}" / "summary.json")
+    if not s:
+        return float("nan")
+    return _metric_mean(s, "tube_conformal", metric_key)
 
 
 def sensitivity_section() -> list[str]:
     lines = [
-        "### Horizon sweep (tube, α=0.10)",
+        "### Horizon sweep (α=0.10)",
         "",
-        "| Policy | H=1 | H=2 | H=3 | H=5 |",
-        "|---|---|---|---|---|",
+        "H=1: exact 1-step `static_conformal`. H∈{2,3,5}: `tube_conformal` with buffer reserve scaled by H/5.",
+        "",
     ]
-    for policy in ABLATION_POLICIES:
-        cells = []
-        for h in HORIZONS:
-            s = load_summary(RESULTS_EXT / "sensitivity" / "horizon" / f"{policy}_H{h}" / "summary.json")
-            v = (
-                s.get("arms", {}).get("tube_conformal", {}).get("rebuffer_total", {}).get("mean", float("nan"))
-                if s
-                else float("nan")
-            )
-            cells.append(f"{v:.2f}" if v == v else "—")
-        lines.append(f"| {policy} | " + " | ".join(cells) + " |")
-    lines.append("")
+    for metric_key, title, lower_better, decimals in (
+        ("rebuffer_total", "Mean rebuffer (s/ep)", True, 2),
+        ("smooth_penalty_mean", "Mean smoothness (|Δlog u|)", True, 2),
+        ("episodic_qoe", "Mean episodic QoE", False, 2),
+    ):
+        lines.append(f"#### {title}")
+        lines.append("")
+        hdr = "| Policy | " + " | ".join(f"H={h}" for h in HORIZONS) + " |"
+        lines.append(hdr)
+        lines.append("|" + "---|" * (len(HORIZONS) + 1))
+        for policy in ABLATION_POLICIES:
+            vals = {str(h): _horizon_metric(policy, h, metric_key) for h in HORIZONS}
+            cells = []
+            best = _best_arm(vals, lower_better=lower_better)
+            for h in HORIZONS:
+                v = vals[str(h)]
+                txt = _fmt_val(v, decimals)
+                if str(h) == best and v == v:
+                    txt = f"**{txt}**"
+                cells.append(txt)
+            lines.append(f"| {policy} | " + " | ".join(cells) + " |")
+        lines.append("")
+
     lines += ["### α sweep (tube, H=5)", "", "| Policy | α=0.05 | α=0.10 | α=0.15 | α=0.20 |", "|---|---|---|---|---|"]
     for policy in ABLATION_POLICIES:
         cells = []
@@ -413,8 +555,8 @@ def main() -> int:
     ap.add_argument(
         "--latency-episodes",
         type=int,
-        default=0,
-        help="Episodes per policy for decision latency profiling (0 = skip)",
+        default=17,
+        help="Episodes per policy×trace for decision latency profiling (0 = skip)",
     )
     ap.add_argument("--skip-ood", action="store_true")
     ap.add_argument("--skip-ablation", action="store_true")

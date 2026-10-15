@@ -29,7 +29,7 @@ HEADLINE_TRACE_SETS: dict[str, Path] = {
 }
 
 EXTENDED_TRACE_SETS: dict[str, Path] = {
-    "5g_mmwave": STANDARDIZED_DIR / "test_traces_5g_mmwave",
+    "5g_stress_v14": STANDARDIZED_DIR / "test_traces_5g_stress_v14",
     "5g_harsh": STANDARDIZED_DIR / "test_traces_5g_harsh_v15",
     "norway_vehicular": STANDARDIZED_DIR / "eval_norway_vehicular",
     "fcc_fixed": STANDARDIZED_DIR / "eval_fcc_fixed",
@@ -93,10 +93,10 @@ def run_episode(
 
     done = False
     while not done:
-        t0 = time.perf_counter()
+        t0 = time.perf_counter_ns()
         a, _ = policy.predict(obs, deterministic=True)
         if time_decisions:
-            decision_us.append((time.perf_counter() - t0) * 1e6)
+            decision_us.append((time.perf_counter_ns() - t0) / 1000.0)
         obs, _r, term, trunc, info = env.step(a)
         done = term or trunc
         chunk_rebufs.append(float(info.get("rebuffer", 0.0)))
@@ -215,11 +215,14 @@ def write_job_out(
     policy: str,
     trace_key: str,
     meta: dict | None = None,
+    *,
+    protocol: str | None = None,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     summaries: dict = {"policy": policy, "trace": trace_key, "arms": {}, "comparisons": {}}
-    if meta:
-        summaries["meta"] = meta
+    summaries["meta"] = dict(meta or {})
+    if protocol:
+        summaries["meta"]["protocol"] = protocol
     metric_cols = [
         "rebuffer_total",
         "rebuffer_p95_chunk",

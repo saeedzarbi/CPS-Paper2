@@ -40,17 +40,27 @@ class ControlArmConfig:
     alpha: float = 0.10
     safety_margin: float = 0.5
     horizon: int = 5
+    horizon_ref: int = 5
     cold_start_cap: float = 0.80
     cold_start_chunks: int = 20
     upward_smooth_weight: float = 2.0
+
+    def effective_safety_margin(self) -> float:
+        """Scale buffer reserve with planning horizon (reference H=5 headline tube)."""
+        h = max(int(self.horizon), 1)
+        ref = max(int(self.horizon_ref), 1)
+        if h <= 1:
+            return float(self.safety_margin)
+        return float(self.safety_margin) * (h / ref)
 
 
 class StaticConformalProjector:
     """Single-step feasibility under harmonic prediction + split conformal lb."""
 
-    def __init__(self, env, cfg: ControlArmConfig | None = None):
+    def __init__(self, env, cfg: ControlArmConfig | None = None, *, adapt: bool = True):
         self.env = env
         self.cfg = cfg or ControlArmConfig()
+        self.adapt = adapt
         self._est = ConformalThroughputEstimator(
             ConformalConfig(alpha=self.cfg.alpha, window=200, k_predict=5)
         )
@@ -70,7 +80,8 @@ class StaticConformalProjector:
         tp = float(getattr(env, "last_raw_throughput", 0.0))
         if tp > 0:
             self._tp_hist.append(tp)
-            self._est.update(tp)
+            if self.adapt:
+                self._est.update(tp)
 
     def _harmonic_kbps(self) -> float:
         h = self._tp_hist[-5:]
@@ -79,10 +90,14 @@ class StaticConformalProjector:
         return float(len(h) / np.sum(1.0 / np.maximum(h, 1e-6)))
 
     def lower_bound_kbps(self) -> float:
-        lb = float(self._est.lower_bound())
-        if self.env.chunk_idx < self.cfg.cold_start_chunks:
-            pred = self._harmonic_kbps()
-            lb = min(lb, self.cfg.cold_start_cap * pred)
+        if self.adapt:
+            lb = float(self._est.lower_bound())
+            if self.env.chunk_idx < self.cfg.cold_start_chunks:
+                pred = self._harmonic_kbps()
+                lb = min(lb, self.cfg.cold_start_cap * pred)
+        else:
+            scale = 1.0 - float(self.cfg.alpha)
+            lb = scale * self._harmonic_kbps()
         return max(lb, 10.0)
 
     def max_safe_action(self, proposed: int | None = None) -> int:
@@ -92,7 +107,7 @@ class StaticConformalProjector:
         env = self.env
         k = int(env.chunk_idx)
         buf = float(env.buffer_level)
-        cap = max(buf - self.cfg.safety_margin, 0.1)
+        cap = max(buf - self.cfg.effective_safety_margin(), 0.1)
         hi = int(proposed) if proposed is not None else len(env.BITRATE_LEVELS) - 1
         best = 0
         for a in range(hi, -1, -1):
@@ -143,7 +158,7 @@ class Heuristic85Projector:
         env = self.env
         k = int(env.chunk_idx)
         buf = float(env.buffer_level)
-        cap = max(buf - self.cfg.safety_margin, 0.1)
+        cap = max(buf - self.cfg.effective_safety_margin(), 0.1)
         hi = int(proposed) if proposed is not None else len(env.BITRATE_LEVELS) - 1
         for a in range(hi, -1, -1):
             br = int(env.BITRATE_LEVELS[a])
@@ -166,7 +181,7 @@ class SymmetricTubeMPCPolicy(TubeMPCPolicy):
         cfg = cfg or ControlArmConfig()
         tube_cfg = tube_cfg or TubeMPCConfig(
             horizon=cfg.horizon,
-            safety_margin=cfg.safety_margin,
+            safety_margin=cfg.effective_safety_margin(),
             tube=ConformalTubeConfig(horizon=cfg.horizon, use_aci=True),
         )
         super().__init__(env, tube_cfg)
@@ -240,7 +255,7 @@ class AsymmetricTubeMPCPolicy(TubeMPCPolicy):
         cfg = cfg or ControlArmConfig()
         tube_cfg = tube_cfg or TubeMPCConfig(
             horizon=cfg.horizon,
-            safety_margin=cfg.safety_margin,
+            safety_margin=cfg.effective_safety_margin(),
             tube=ConformalTubeConfig(horizon=cfg.horizon, use_aci=False),
         )
         super().__init__(env, tube_cfg)
@@ -315,6 +330,28 @@ class AsymmetricTubeMPCPolicy(TubeMPCPolicy):
         return int(seqs[int(np.argmax(total)), 0])
 
 
+class SymmetricTubeConformalPolicy:
+    """Symmetric tube MPC only (no static emergency cap)."""
+
+    def __init__(self, env, base_policy, cfg: ControlArmConfig | None = None):
+        self.env = env
+        self.base = base_policy
+        self.cfg = cfg or ControlArmConfig()
+        eff = self.cfg.effective_safety_margin()
+        tube_cfg = TubeMPCConfig(
+            horizon=self.cfg.horizon,
+            safety_margin=eff,
+            tube=ConformalTubeConfig(horizon=self.cfg.horizon, use_aci=True),
+        )
+        self.tube = SymmetricTubeMPCPolicy(env, self.cfg, tube_cfg)
+
+    def on_episode_start(self):
+        self.tube.on_episode_start()
+
+    def predict(self, obs, deterministic=True):
+        return self.tube.plan_action(), None
+
+
 class TubeConformalPolicy:
     """Tube MPC + planning, capped by static 1-step safe rung."""
 
@@ -326,14 +363,16 @@ class TubeConformalPolicy:
         *,
         tube_planner: type = AsymmetricTubeMPCPolicy,
         use_aci: bool = True,
+        static_adapt: bool = True,
     ):
         self.env = env
         self.base = base_policy
         self.cfg = cfg or ControlArmConfig()
-        self.static = StaticConformalProjector(env, self.cfg)
+        eff = self.cfg.effective_safety_margin()
+        self.static = StaticConformalProjector(env, self.cfg, adapt=static_adapt)
         tube_cfg = TubeMPCConfig(
             horizon=self.cfg.horizon,
-            safety_margin=self.cfg.safety_margin,
+            safety_margin=eff,
             tube=ConformalTubeConfig(
                 horizon=self.cfg.horizon,
                 use_aci=use_aci,
@@ -388,13 +427,16 @@ def make_controlled_policy(
         return _wrap_projector(base_policy, StaticConformalProjector(env, cfg))
 
     if arm == "symmetric_tube":
-        return TubeConformalPolicy(
-            env, base_policy, cfg, tube_planner=SymmetricTubeMPCPolicy, use_aci=True
-        )
+        return SymmetricTubeConformalPolicy(env, base_policy, cfg)
 
     if arm == "fixed_alpha_tube":
         return TubeConformalPolicy(
-            env, base_policy, cfg, tube_planner=AsymmetricTubeMPCPolicy, use_aci=False
+            env,
+            base_policy,
+            cfg,
+            tube_planner=AsymmetricTubeMPCPolicy,
+            use_aci=False,
+            static_adapt=False,
         )
 
     if arm == "tube_conformal":
