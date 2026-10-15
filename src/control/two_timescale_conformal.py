@@ -46,12 +46,15 @@ class ControlArmConfig:
     upward_smooth_weight: float = 2.0
 
     def effective_safety_margin(self) -> float:
-        """Scale buffer reserve with planning horizon (reference H=5 headline tube)."""
+        """Buffer reserve for tube arms; H=1 static uses full margin (horizon sweep baseline)."""
         h = max(int(self.horizon), 1)
         ref = max(int(self.horizon_ref), 1)
         if h <= 1:
             return float(self.safety_margin)
-        return float(self.safety_margin) * (h / ref)
+        # Ramp reserve with H (not H/ref): avoids an overly loose H=2 that collapses QoE.
+        t = (h - 1) / max(ref - 1, 1)
+        scale = 0.55 + 0.45 * t
+        return float(self.safety_margin) * scale
 
 
 class StaticConformalProjector:

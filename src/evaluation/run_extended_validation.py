@@ -48,7 +48,7 @@ ABLATION_POLICIES = ("bba", "bola")
 # H=8 omitted: full tube MPC enumerates 6^8 sequences per chunk (infeasible at 204 eps).
 HORIZONS = (1, 2, 3, 5)
 ALPHAS = (0.05, 0.10, 0.15, 0.20)
-REPORT_PROTOCOL = "clean_v3_extended_v2"
+REPORT_PROTOCOL = "clean_v3_extended_v3"
 MM_USER = "clean_v3_extended"
 
 HEADLINE_ARM_LABELS = {
@@ -185,7 +185,7 @@ def run_ood_suite(episodes: int, workers: int) -> None:
             continue
         for policy in OOD_POLICIES:
             out = RESULTS_EXT / "ood" / trace_key / policy
-            need_proto = trace_key == "5g_stress_v14"
+            need_proto = trace_key == "5g_v18"
             if _job_done(out, REPORT_PROTOCOL if need_proto else None):
                 print(f"[skip] done: ood/{trace_key}/{policy}")
                 continue
@@ -487,7 +487,7 @@ def sensitivity_section() -> list[str]:
     lines = [
         "### Horizon sweep (α=0.10)",
         "",
-        "H=1: exact 1-step `static_conformal`. H∈{2,3,5}: `tube_conformal` with buffer reserve scaled by H/5.",
+        "H=1: exact 1-step `static_conformal`. H∈{2,3,5}: `tube_conformal` with reserve ramping to full H=5.",
         "",
     ]
     for metric_key, title, lower_better, decimals in (

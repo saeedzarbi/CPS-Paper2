@@ -29,7 +29,7 @@ HEADLINE_TRACE_SETS: dict[str, Path] = {
 }
 
 EXTENDED_TRACE_SETS: dict[str, Path] = {
-    "5g_stress_v14": STANDARDIZED_DIR / "test_traces_5g_stress_v14",
+    "5g_v18": STANDARDIZED_DIR / "test_traces_5g_v18",
     "5g_harsh": STANDARDIZED_DIR / "test_traces_5g_harsh_v15",
     "norway_vehicular": STANDARDIZED_DIR / "eval_norway_vehicular",
     "fcc_fixed": STANDARDIZED_DIR / "eval_fcc_fixed",
