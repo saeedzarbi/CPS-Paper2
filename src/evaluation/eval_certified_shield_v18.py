@@ -41,7 +41,7 @@ from configs.paths import get_paths
 from configs.videos import (
     CPS_EPISODES, EVAL_VIDEOS, HELD_OUT_VIDEOS, MAX_CHUNKS, TRAIN_VIDEOS,
 )
-from src.environment.abr_multi_env_v18 import ABREnv
+from src.environment.clean_abr_env import ABREnv
 from src.training.certified_perceptual_shield import (
     CertifiedPerceptualShieldWrapper, CPShieldConfig, ConformalConfig)
 

@@ -39,6 +39,8 @@ TEST_TRACES_5G_V18_DIR = STANDARDIZED_DIR / "test_traces_5g_v18"
 # Real 5G (MMSys 2020 Irish traces); see docs/data_5g_real.md
 TRAIN_TRACES_5G_IRISH_MMSYS20_DIR = STANDARDIZED_DIR / "train_traces_5g_irish_mmsys20"
 TEST_TRACES_5G_IRISH_MMSYS20_DIR = STANDARDIZED_DIR / "test_traces_5g_irish_mmsys20"
+TRAIN_TRACES_5G_MARKOV_DIR = STANDARDIZED_DIR / "train_traces_5g_markov"
+TEST_TRACES_5G_MARKOV_DIR = STANDARDIZED_DIR / "test_traces_5g_markov"
 
 # Results directories
 RESULTS_DIR = PROJECT_ROOT / "results"
@@ -68,6 +70,8 @@ def get_paths():
         "test_traces_5g_v18": TEST_TRACES_5G_V18_DIR,
         "train_traces_5g_irish_mmsys20": TRAIN_TRACES_5G_IRISH_MMSYS20_DIR,
         "test_traces_5g_irish_mmsys20": TEST_TRACES_5G_IRISH_MMSYS20_DIR,
+        "train_traces_5g_markov": TRAIN_TRACES_5G_MARKOV_DIR,
+        "test_traces_5g_markov": TEST_TRACES_5G_MARKOV_DIR,
         "results": RESULTS_DIR,
         "models": MODELS_DIR,
         "logs": LOGS_DIR,

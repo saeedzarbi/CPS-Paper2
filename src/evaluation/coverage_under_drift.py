@@ -36,7 +36,7 @@ if str(_ROOT) not in sys.path:
 
 from configs.paths import get_paths
 from configs.videos import CPS_EPISODES, EVAL_VIDEOS, MAX_CHUNKS
-from src.environment.abr_multi_env_v18 import ABREnv
+from src.environment.clean_abr_env import ABREnv
 from src.evaluation.eval_certified_shield_v18 import GreedyPolicy, build_base_env
 from src.training.certified_perceptual_shield import (
     CertifiedPerceptualShieldWrapper,
