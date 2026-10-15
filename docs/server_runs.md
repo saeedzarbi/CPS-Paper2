@@ -1,6 +1,6 @@
-# Running OACS campaigns on a server
+# Running `clean_v3` on a server
 
-Paper 2 jobs are designed for **Linux** batch nodes (no emoji in logs; UTF-8 safe `paths.py`).
+Paper 2 headline eval runs on **Linux** (204 paired episodes per policy×trace job).
 
 ## 1. Clone and environment
 
@@ -9,93 +9,56 @@ git clone <repo-url> CPS-Paper2
 cd CPS-Paper2
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-smoke.txt   # or requirements.txt
 export PYTHONPATH="${PWD}"
 export PYTHONIOENCODING=utf-8
 ```
 
-## 2. Data (do not commit large `data/`)
-
-Point the repo at a shared dataset mount:
+## 2. Data
 
 ```bash
-export CPS_PAPER2_DATA_ROOT=/datasets/cps-paper2/data
-# or: export CPS_DATA_ROOT=...
-python configs/paths.py
+export CPS_PAPER2_DATA_ROOT=/datasets/cps-paper2/data   # optional
+python scripts/paper2/verify_data.py
+python data/prepare_markov_5g_traces.py   # if test_traces_5g_markov missing
 ```
 
-Expected under that root (same layout as Paper 1):
+See `docs/data_setup.md`.
 
-- `standardized/test_traces_5g_v18/`, `test_traces_v18/`
-- `vmaf_scores/vmaf_perchunk.csv`, `vmaf_summary.csv`
-- `content_features/` (if scripts need SITI)
-
-See also `docs/data_setup.md`.
-
-## 3. Deploy from laptop (optional)
+## 3. Smoke
 
 ```bash
-python scripts/paper2/_remote_bootstrap.py   # git clone + tarball sync + venv
-python scripts/paper2/_remote_start_screen.py # smoke in screen session `oacs`
+python experiments/run_clean_campaign.py --policy mpc --episodes 2 --trace 5g_markov --out /tmp/clean_smoke
 ```
 
-Log files persist under `results/oacs/logs/` even after screen exits.
-
-## 4. Smoke test (after deploy)
+## 4. Full `clean_v3` sweep
 
 ```bash
-bash experiments/paper2/run_smoke.sh
+export CLEAN_CAMPAIGN=clean_v3
+mkdir -p results/${CLEAN_CAMPAIGN}/logs
+for p in mpc greedy bba bola; do
+  python experiments/run_clean_campaign.py --policy "$p" --episodes 204 --out "results/${CLEAN_CAMPAIGN}"
+done 2>&1 | tee "results/${CLEAN_CAMPAIGN}/logs/run_$(date +%Y%m%d_%H%M).log"
 ```
 
-## 5. Full campaign (when eval scripts land)
+Outputs: `results/clean_v3/<policy>_{5g_markov,bb}/summary.json` and `episodes.csv`.
+
+## 5. tmux / screen
 
 ```bash
-export OACS_CAMPAIGN=oacs-r1_main          # optional; default in paper2_release
-bash experiments/paper2/run_campaign.sh
+tmux new -s clean_v3
+# run section 4 inside the session
 ```
 
-Outputs:
-
-```text
-results/oacs/campaigns/<OACS_CAMPAIGN>/
-results/models/oacs/
-```
-
-## 6. tmux / nohup pattern
+## 6. Copy results off the server (optional)
 
 ```bash
-tmux new -s oacs
-source .venv/bin/activate
-export CPS_PAPER2_DATA_ROOT=/datasets/cps-paper2/data
-export PYTHONPATH=$PWD
-bash experiments/paper2/run_campaign.sh 2>&1 | tee results/oacs/campaigns/logs/run_$(date +%Y%m%d_%H%M).log
+rsync -avz results/clean_v3/ user@laptop:~/CPS-Paper2/results/clean_v3/
 ```
 
-## 7. Sync results back (optional)
+## Mattermost (optional)
+
+Gitignored `mattermost_webhook.url` at repo root, or `MATTERMOST_WEBHOOK_URL`.
 
 ```bash
-rsync -avz results/oacs/ user@laptop:~/CPS-Paper2/results/oacs/
+python scripts/paper2/mattermost_notify.py "clean_v3 smoke OK"
 ```
-
-## Mattermost webhook (per-step logs)
-
-Create `mattermost_webhook.url` at repo root (one line, incoming webhook URL; gitignored).
-Or export `MATTERMOST_WEBHOOK_URL`.
-
-`run_campaign.sh` and `eval_oacs_campaign.py` post on: campaign start/end, each policy×trace job, each arm, each summary.
-
-Test:
-
-```bash
-python scripts/paper2/mattermost_notify.py "OACS webhook test"
-```
-
-## 8. What stays on laptop vs server
-
-| Task | Where |
-|------|--------|
-| Editing shield / eval code | Laptop or server |
-| 204-episode × multi-policy sweeps | **Server** |
-| LaTeX asset build (`make_oacs_assets.py`) | Either (needs `results/oacs/`) |
-
-Paper 1 artifacts remain under `paper_v1/` and `results/v18_*` on the old tree; Paper 2 never writes into those paths.

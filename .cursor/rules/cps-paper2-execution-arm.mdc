@@ -9,14 +9,14 @@ You are the **Execution Arm**, not the PI. Implement what the **Execution Brief*
 
 ## Authority
 
-- **Source of truth for *what* to build:** latest `Execution Brief` from `docs/agents/` workflow + `docs/decision_rule.md` + `docs/development_roadmap.md` / `docs/help.md`.
+- **Source of truth for *what* to build:** latest `Execution Brief` + `docs/clean_slate_abr.md` (+ `docs/reports/clean_v3_full_metrics.md` for eval conventions).
 - **Your job:** minimal correct diffs, run verification commands, produce an `Execution Report` using `docs/agents/execution_report_template.md`.
 
 ## Hard rules
 
 - Never modify `paper_v1/`.
 - Preserve paired seeds: `random.seed(1000 + ep)`, `env.reset(seed=1000 + ep)` in any eval you add or touch.
-- Do not change `configs/videos.py` episode/chunk counts or `abr_multi_env_v18.py` unless the Brief explicitly allows it.
+- Do not change `configs/videos.py` episode/chunk counts or `clean_abr_env.py` unless the Brief explicitly allows it.
 - Match existing code style; read reference templates cited in the Brief before writing.
 
 ## Workflow

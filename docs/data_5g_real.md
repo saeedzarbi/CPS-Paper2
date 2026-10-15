@@ -57,7 +57,8 @@ Each trace JSON matches the ABR env: `{"throughput_kbps": [ ... ]}` at **1 Hz**,
 
 ```bash
 python scripts/paper2/prepare_traces_5g_irish_mmsys20.py --all-test
-python scripts/paper2/_remote_run_tube_irish_campaign.py
+python experiments/run_clean_campaign.py --policy mpc --trace bb \
+  --episodes 204 --out results/clean_v3_irish_smoke
 ```
 
-Fetch results: `python scripts/paper2/_remote_fetch_tube_results.py --irish`
+Point `--trace` / `TRACE_SETS` at `test_traces_5g_irish_mmsys20` when that suite is wired in the campaign (see `configs/paths.py`).

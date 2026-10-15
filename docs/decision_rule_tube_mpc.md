@@ -11,7 +11,7 @@ Paper 1 (CPS v18, `paper_v1/`) coupled **VMAF-knee banking** with **split-confor
 
 - Depends on heavy VMAF assets (encode + libvmaf pipelines).
 - Frames quality as an **application-layer** perceptual metric.
-- Our first OACS prototype (`oacs-r1_mm`) showed that **online ACI + per-chunk VMAF** did not beat CPS v18 on 5G rebuffer without further calibration (see `docs/reports/oacs_r1_results_summary.md`).
+- The OACS prototype (`oacs-r1_mm`) did not beat CPS v18 on 5G rebuffer; that line is archived. The shipped evaluator is **`experiments/run_clean_campaign.py`** (`clean_v3`).
 
 **Paper 2 (new)** targets **networking & control** venues (e.g., Computer Networks, ToN-style framing): **robust, safe ABR under non-stationary throughput** using only **bytes, buffer, and throughput**—no VMAF in the control loop or evaluation utility.
 
@@ -115,4 +115,4 @@ Same traces: `test_traces_5g_v18`, `test_traces_v18`; seeds `1000 + ep`; **no VM
 
 ## 8. Source note
 
-Strategic pivot documented in `docs/help2.txt` (Persian). This file is the **English canonical spec** for Cursor agents and Academic Lead.
+**Archived design doc.** Implementation and metrics: [`clean_slate_abr.md`](clean_slate_abr.md), [`reports/clean_v3_full_metrics.md`](reports/clean_v3_full_metrics.md).

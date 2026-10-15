@@ -1,6 +1,6 @@
-# Clean-slate wall-clock ABR (h3)
+# Clean-slate wall-clock ABR
 
-Active simulator spec: [`h3.txt`](h3.txt).
+Canonical Paper 2 simulator and **`clean_v3`** campaign (three conformal arms, Markov 5G + broadband).
 
 ## Implemented
 
@@ -18,9 +18,8 @@ Legacy `abr_multi_env_v5..v18` removed from `src/environment/` (frozen copy rema
 ```bash
 export PYTHONPATH=$PWD
 python data/prepare_markov_5g_traces.py
-bash experiments/paper2/run_clean_smoke.sh
-python experiments/run_clean_campaign.py --policy mpc --episodes 204 --reward-mode log_utility
-python experiments/run_clean_campaign.py --policy greedy --episodes 204 --reward-mode log_utility
+python experiments/run_clean_campaign.py --policy mpc --episodes 204 --reward-mode log_utility --out results/clean_v3
+python experiments/run_clean_campaign.py --policy greedy --episodes 204 --reward-mode log_utility --out results/clean_v3
 ```
 
 Paper 2 entry alias: `Paper2StreamingEnv` = `CleanABREnv` in `src/environment/paper2_abr_env.py`.

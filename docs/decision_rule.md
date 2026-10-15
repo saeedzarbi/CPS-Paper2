@@ -1,6 +1,6 @@
 # Project Specification: Online Adaptive Conformal & Action-Masked Perceptual Shielding (CPS-Paper2 / V20)
 
-> **Archived for new development (2026-10).** Active Paper 2 direction: **[Multi-Horizon Conformal Tube-MPC](decision_rule_tube_mpc.md)** (no VMAF). See `docs/pivot_note.md` and `docs/help2.txt`.
+> **Archived (2026-10).** Active Paper 2: **[clean-slate ABR](clean_slate_abr.md)** and **`clean_v3`** results (`docs/reports/clean_v3_full_metrics.md`).
 
 ---
 

@@ -39,8 +39,8 @@ sequenceDiagram
 3. بنویسید:
 
 ```text
-@docs/decision_rule.md @docs/development_roadmap.md @docs/help.md
-Phase 1 را باز کن: Execution Brief بده؛ هنوز کد ننویس.
+@docs/clean_slate_abr.md @docs/reports/clean_v3_full_metrics.md
+فاز بعدی را باز کن: Execution Brief بده؛ هنوز کد ننویس.
 ```
 
 ### ۲) چت Execution Arm
@@ -61,9 +61,9 @@ Execution Report فاز X را review کن. Sign-off بده یا Brief اصلا�
 
 ## اسناد مرجع (هر دو نقش)
 
-- [`docs/decision_rule.md`](../decision_rule.md) — ادعاهای علمی و نوآوری
-- [`docs/development_roadmap.md`](../development_roadmap.md) — فازها و verify (نسخهٔ کامل در [`docs/help.md`](../help.md) در صورت کوتاه بودن roadmap)
-- [`docs/help.md`](../help.md) — دستورات verify و پرامپت فازها
+- [`docs/clean_slate_abr.md`](../clean_slate_abr.md) — محیط و کمپین `clean_v3`
+- [`docs/reports/clean_v3_full_metrics.md`](../reports/clean_v3_full_metrics.md) — نتایج headline
+- [`docs/server_runs.md`](../server_runs.md) — اجرا روی سرور
 
 ## قوانین غیرقابل مذاکره (هر دو نقش)
 
