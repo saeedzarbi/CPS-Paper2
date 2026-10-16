@@ -39,12 +39,11 @@ def main() -> None:
             bounds = {}
             ep = np.full((len(trace), H), np.nan)
             for j, y in enumerate(trace):
-                if j > 0:
-                    for h in range(1, H + 1):
-                        d = j - (h - 1)
-                        if d in bounds and d >= 1:
-                            ep[j, h - 1] = float(y >= bounds[d][h - 1] - 1e-6)
-                bounds[j] = tube.horizon_lower_bounds_kbps(H, decision_chunk=j)
+                bounds[j] = tube.horizon_lower_bounds_kbps(H, decision_chunk=j)  # uses obs < j
+                for h in range(1, H + 1):
+                    d = j - (h - 1)
+                    if d in bounds:
+                        ep[j, h - 1] = float(y >= bounds[d][h - 1] - 1e-6)
                 tube.observe(float(y), realized_chunk=j)
             hits.append(ep)
         H_ = np.stack(hits)  # E x T x H
