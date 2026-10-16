@@ -99,7 +99,8 @@ class MaxScoreConformalTube(ConformalThroughputTubeV2):
 
     def _maybe_complete_joint_decision(self, c: int) -> None:
         h_max = len(self._scores)
-        j = c - h_max
+        off = int(self.cfg.legacy_step_offset)
+        j = c - (h_max - 1) - off
         if j < 0 or j not in self._bounds_by_decision:
             return
         bounds = self._bounds_by_decision[j]
@@ -110,7 +111,7 @@ class MaxScoreConformalTube(ConformalThroughputTubeV2):
         ok = True
         smax = 0.0
         for step in range(h_max):
-            act = self._actual_by_chunk.get(j + step + 1)
+            act = self._actual_by_chunk.get(j + step + off)
             if act is None:
                 return
             if act < float(bounds[step]) - 1e-6:

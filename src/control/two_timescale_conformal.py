@@ -101,14 +101,14 @@ def parse_tube_v3_arm(arm: str) -> dict | None:
     """Tube-v3 arms: tube_v2_step_split[_aX], tube_v2_step_static_aX, tube_v2_maxscore_aX."""
     name = str(arm)
     alpha = None
-    m = __import__("re").fullmatch(r"(tube_v2_(?:step_split|step_static|maxscore))(?:_a(\d*\.?\d+))?", name)
+    m = __import__("re").fullmatch(r"(tube_v2_(?:step_split|step_static|step_aci|maxscore))(?:_a(\d*\.?\d+))?", name)
     if not m:
         return None
     base, a = m.group(1), m.group(2)
-    if base == "tube_v2_step_static" and a is None:
+    if base in ("tube_v2_step_static", "tube_v2_step_aci") and a is None:
         return None  # legacy arm handled by parse_tube_v2_arm (unchanged)
     alpha = float(a) if a is not None else None
-    kind = {"tube_v2_step_split": "split", "tube_v2_step_static": "static", "tube_v2_maxscore": "maxscore"}[base]
+    kind = {"tube_v2_step_split": "split", "tube_v2_step_static": "static", "tube_v2_step_aci": "aci", "tube_v2_maxscore": "maxscore"}[base]
     return {"kind": kind, "alpha": alpha}
 
 
@@ -620,7 +620,7 @@ def make_controlled_policy(
             base_policy,
             cfg3,
             mode="per_step",
-            use_aci=False,
+            use_aci=(v3["kind"] == "aci"),
             capped=True,
             split_objective=(v3["kind"] == "split"),
             tube_kind=("maxscore" if v3["kind"] == "maxscore" else "v2"),

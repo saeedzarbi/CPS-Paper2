@@ -23,7 +23,7 @@ from src.evaluation.run_tube_v2_phase2 import (  # noqa: E402
 )
 from src.evaluation.trace_provenance import verify_or_exit  # noqa: E402
 
-OUT_ROOT = ROOT / "results" / "tube_v3" / "val"
+OUT_ROOT = ROOT / "results" / "tube_v3" / "val_aligned"
 ALPHAS = (0.1, 0.15, 0.2, 0.3)
 
 
@@ -32,12 +32,12 @@ def job_list() -> list[tuple[str, float | None]]:
         ("robust_mpc_logu", None),
         ("mpc_fixed_quantile_native", None),
         *[(f"mpc_fixed_rho_{r}", None) for r in ("0.5", "0.55", "0.6", "0.65", "0.7")],
-        ("tube_v2_step_static", None),
-        ("tube_v2_step_aci", 0.002),
+        ("tube_v2_bonf_static", None),
     ]
-    for a in ALPHAS:
+    for a in (0.1, 0.15, 0.2):
         jobs.append((f"tube_v2_step_static_a{a}", None))
-        jobs.append((f"tube_v2_step_split_a{a}", None))
+    for a in (0.1, 0.15):
+        jobs.append((f"tube_v2_step_aci_a{a}", 0.002))
     jobs += [("tube_v2_maxscore_a0.1", None), ("tube_v2_maxscore_a0.2", None)]
     return jobs
 
@@ -48,7 +48,7 @@ def _key(arm: str, gamma: float | None) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--trace-sets", nargs="+", default=["5g_markov", "5g_harsh", "bb"])
+    ap.add_argument("--trace-sets", nargs="+", default=["5g_markov", "5g_harsh", "bb", "5g_irish"])
     ap.add_argument("--episodes", type=int, default=100)
     args = ap.parse_args()
     verify_or_exit()
@@ -57,7 +57,11 @@ def main() -> int:
             "started_at_utc": datetime.now(timezone.utc).isoformat(), "provenance_status": "VERIFIED"}
     (OUT_ROOT / "meta.json").write_text(json.dumps(meta, indent=2))
     for ts in args.trace_sets:
-        trace_dir = resolve_trace_dir(ts, "val")  # VAL ONLY
+        try:
+            trace_dir = resolve_trace_dir(ts, "val")  # VAL ONLY
+        except (FileNotFoundError, KeyError) as e:
+            print("SKIP", ts, e, flush=True)
+            continue
         for arm, gamma in job_list():
             key = _key(arm, gamma)
             path = OUT_ROOT / ts / (key.replace("@", "_at_") + ".csv")

@@ -34,6 +34,10 @@ class ConformalTubeV2Config:
     aci_invert_sign: bool = False
     min_kbps: float = 10.0
     cold_start_cap: float = 0.80
+    # Horizon alignment: step h (1-indexed) of decision j covers chunk j + h - 1 + legacy_step_offset.
+    # 0 = aligned with the planner (h=1 is the chunk being downloaded at decision j).
+    # 1 = legacy Tube-v2 behaviour (off by one); kept only for regression tests.
+    legacy_step_offset: int = 0
     conformal: ConformalConfig = field(
         default_factory=lambda: ConformalConfig(alpha=0.10, window=200, k_predict=5)
     )
@@ -192,8 +196,9 @@ class ConformalThroughputTubeV2:
         c = int(realized_chunk if realized_chunk is not None else self._n_realized)
         self._n_realized = max(self._n_realized, c + 1)
         h_max = len(self._scores)
+        off = int(self.cfg.legacy_step_offset)
         for h in range(1, h_max + 1):
-            j = c - h
+            j = c - (h - 1) - off
             bounds = self._bounds_by_decision.get(j)
             hats = self._hats_by_decision.get(j)
             if bounds is None or hats is None or h > len(bounds):
@@ -204,13 +209,14 @@ class ConformalThroughputTubeV2:
 
     def _maybe_complete_joint_decision(self, c: int) -> None:
         h_max = len(self._scores)
-        j = c - h_max
+        off = int(self.cfg.legacy_step_offset)
+        j = c - (h_max - 1) - off
         if j < 0 or j not in self._bounds_by_decision:
             return
         bounds = self._bounds_by_decision[j]
         ok = True
         for step in range(h_max):
-            chunk_idx = j + step + 1
+            chunk_idx = j + step + off
             act = self._actual_by_chunk.get(chunk_idx)
             if act is None:
                 ok = False

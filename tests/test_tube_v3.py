@@ -17,7 +17,7 @@ def _run_iid(alpha: float, n: int = 20_000, H: int = 5, seed: int = 3) -> MaxSco
     tp = rng.lognormal(7.0, 0.4, n)
     for t, a in enumerate(tp):
         tube.horizon_lower_bounds_kbps(H, decision_chunk=t)
-        tube.observe(float(a), realized_chunk=t + 1)
+        tube.observe(float(a), realized_chunk=t)
     return tube
 
 
@@ -35,10 +35,10 @@ def test_maxscore_bounds_are_pre_update() -> None:
     rng = np.random.default_rng(0)
     for t in range(300):
         tube.horizon_lower_bounds_kbps(3, decision_chunk=t)
-        tube.observe(float(rng.lognormal(7, 0.3)), realized_chunk=t + 1)
+        tube.observe(float(rng.lognormal(7, 0.3)), realized_chunk=t)
     lb = tube.horizon_lower_bounds_kbps(3, decision_chunk=300)
     stored = tube._bounds_by_decision[300].copy()
-    tube.observe(1.0, realized_chunk=301)  # extreme miss must not alter stored bounds
+    tube.observe(1.0, realized_chunk=300)  # extreme miss must not alter stored bounds
     assert np.allclose(tube._bounds_by_decision[300], stored)
     assert np.allclose(lb, stored)
 
@@ -59,6 +59,8 @@ def test_arm_parsing() -> None:
     assert parse_tube_v3_arm("tube_v2_step_static_a0.2") == {"kind": "static", "alpha": 0.2}
     assert parse_tube_v3_arm("tube_v2_maxscore_a0.1") == {"kind": "maxscore", "alpha": 0.1}
     assert parse_tube_v2_arm("tube_v2_step_split") is None
+    assert parse_tube_v3_arm("tube_v2_step_aci_a0.15") == {"kind": "aci", "alpha": 0.15}
+    assert parse_tube_v3_arm("tube_v2_step_aci") is None
 
 
 class _FakeEnv:
@@ -106,3 +108,39 @@ def test_split_is_less_conservative_with_optimistic_point() -> None:
         pol.tube.predict_point_kbps = lambda: 3000.0
         acts.append(pol.plan_action())
     assert acts[1] >= acts[0]
+
+
+@pytest.mark.parametrize("cls_name", ["v2", "maxscore"])
+def test_horizon_alignment_pinned(cls_name: str) -> None:
+    """Planner convention: decision j is made after chunk j-1 is observed; step h covers chunk j+h-1.
+
+    Trace alternates 1000/100 kbps. Bounds are set to 900 for chunks the
+    planner believes are 'high' and 90 for 'low'. Correct alignment => every
+    step covered (coverage 1.0); off-by-one => all odd-step comparisons hit a
+    900 bound against a 100 chunk => coverage 0.5 per step, joint 0.0.
+    """
+    from src.training.conformal_tube_v2 import ConformalThroughputTubeV2
+
+    H = 4
+    def val(c: int) -> float:
+        return 1000.0 if c % 2 == 0 else 100.0
+
+    def run(offset: int):
+        cfg = ConformalTubeV2Config(alpha=0.1, horizon=H, legacy_step_offset=offset)
+        tube = MaxScoreConformalTube(cfg) if cls_name == "maxscore" else ConformalThroughputTubeV2(cfg)
+        if cls_name == "maxscore":
+            tube._sigmas_by_decision = {}
+        for j in range(200):
+            b = np.array([0.9 * val(j + h - 1) for h in range(1, H + 1)])
+            tube._hats_by_decision[j] = np.full(H, 1000.0)
+            tube._bounds_by_decision[j] = b
+            if cls_name == "maxscore":
+                tube._sigmas_by_decision[j] = np.full(H, 0.5)
+            tube.observe(val(j), realized_chunk=j)
+        return tube.empirical_coverage_per_step(), tube.joint_coverage()
+
+    cov, joint = run(0)
+    assert np.allclose(cov, 1.0) and joint == 1.0
+    cov_bad, joint_bad = run(1)
+    assert np.allclose(cov_bad, 0.5, atol=0.02)
+    assert joint_bad == 0.0

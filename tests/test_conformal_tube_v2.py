@@ -166,11 +166,10 @@ def test_aci_differs_and_recovers_after_shift() -> None:
             if t >= shift + h:
                 post_hits.append(float(actual) >= float(bounds[0]) - 1e-6)
             tube.observe(float(actual), realized_chunk=t)
-        burn = 800
-        settled = post_hits[burn:] if len(post_hits) > burn else post_hits
-        post_roll = float(np.mean(settled[-window:])) if len(settled) >= window else float(
-            np.mean(settled)
-        )
+        # Early recovery window (first 200 post-shift decisions): with aligned
+        # horizon indexing, static recovers once its 200-score window refreshes,
+        # so ACI's advantage is in the transient.
+        post_roll = float(np.mean(post_hits[:200]))
         long_run = float(np.mean(post_hits[-5000:])) if len(post_hits) >= 5000 else float(
             np.mean(post_hits)
         )
@@ -192,7 +191,8 @@ def test_aci_differs_and_recovers_after_shift() -> None:
     base = ConformalThroughputTubeV2(cfg_aci)._base_alpha_per_step()
     assert not np.allclose(alpha_t, base, atol=1e-4)
     assert post_aci != post_static
-    assert abs(post_aci - target) < abs(post_static - target) - 0.001
+    assert abs(post_aci - target) < abs(post_static - target) - 0.03
+    assert abs(long_aci - target) <= 0.02
 
 
 def test_cold_start_gate_uses_nominal_alpha_not_aci() -> None:
