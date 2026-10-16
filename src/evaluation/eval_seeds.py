@@ -15,8 +15,12 @@ def episode_seed(master_seed: int, trace_key: str, episode: int) -> int:
     return int.from_bytes(digest[:4], "big") % (2**31 - 1)
 
 
-def apply_episode_seeds(master_seed: int, trace_key: str, episode: int) -> int:
+def episode_rng(master_seed: int, trace_key: str, episode: int) -> np.random.Generator:
+    return np.random.default_rng(episode_seed(master_seed, trace_key, episode))
+
+
+def apply_episode_seeds(master_seed: int, trace_key: str, episode: int) -> tuple[int, np.random.Generator]:
     s = episode_seed(master_seed, trace_key, episode)
     random.seed(s)
-    np.random.seed(s % (2**32 - 1))
-    return s
+    gen = np.random.default_rng(s)
+    return s, gen

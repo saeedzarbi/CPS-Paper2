@@ -64,3 +64,40 @@ def resolve_trace_dir(trace_set: str, split: str) -> Path:
     if trace_set not in TRACE_SETS_V2 or split not in TRACE_SETS_V2[trace_set]:
         raise KeyError((trace_set, split))
     return TRACE_SETS_V2[trace_set][split]
+
+
+# Eval trace sets without a dedicated train split use this key for calibration (train+val).
+CALIBRATION_TRACE_SET_KEY: dict[str, str] = {
+    "5g_harsh": "5g_markov",
+    "5g_v18": "5g_markov",
+    "bb": "bb",
+    "5g_markov": "5g_markov",
+    "5g_irish": "5g_irish",
+}
+
+
+def calibration_dirs_for_eval(trace_set: str) -> list[Path]:
+    """Train (+ materialized val) directories for fitting; never the test split."""
+    from configs.paths import TRAIN_TRACES_5G_V18_DIR, TRAIN_TRACES_V18_DIR
+
+    key = CALIBRATION_TRACE_SET_KEY.get(trace_set, trace_set)
+    if key == "bb":
+        dirs: list[Path] = []
+        if TRAIN_TRACES_V18_DIR.is_dir():
+            dirs.append(TRAIN_TRACES_V18_DIR)
+        return dirs
+    if key == "5g_v18" and TRAIN_TRACES_5G_V18_DIR.is_dir():
+        return [TRAIN_TRACES_5G_V18_DIR]
+    if key not in TRACE_SETS_V2:
+        raise KeyError(f"No calibration mapping for trace_set={trace_set}")
+    train = TRACE_SETS_V2[key]["train"]
+    if not train.is_dir():
+        raise FileNotFoundError(f"Missing train dir for calibration key {key}: {train}")
+    dirs = [train]
+    try:
+        vd = val_trace_dir(key)
+        if vd.is_dir():
+            dirs.append(vd)
+    except FileNotFoundError:
+        pass
+    return dirs

@@ -66,7 +66,7 @@ def test_bonferroni_joint_coverage(alpha: float, horizon: int) -> None:
     # API joint (per completed decision, bounds frozen at issue time)
     tube = ConformalThroughputTubeV2(cfg)
     h = horizon
-    tp = _lognormal_stream(np.random.default_rng(horizon * 3 + int(alpha * 100)), 25_000)
+    tp = _lognormal_stream(np.random.default_rng(horizon * 3 + int(alpha * 100)), 25_000)  # noqa: NPY002
     for t, actual in enumerate(tp):
         tube.horizon_lower_bounds_kbps(h, decision_chunk=t)
         tube.observe(float(actual), realized_chunk=t)
@@ -90,38 +90,73 @@ def test_bonferroni_aci_per_step_coverage(alpha: float, horizon: int) -> None:
 
 
 def test_aci_differs_and_recovers_after_shift() -> None:
-    rng = np.random.default_rng(0)
-    n = 12_000
-    tp = rng.lognormal(7.0, 0.35, n // 2)
-    tp2 = rng.lognormal(6.2, 0.55, n // 2)
-    trace = np.concatenate([tp, tp2])
+    rng = np.random.default_rng(2)
+    shift = 4000
+    n = 25_000
+    trace = np.concatenate(
+        [
+            rng.lognormal(7.3, 0.22, shift),
+            rng.lognormal(5.2, 0.60, n - shift) * 0.30,
+        ]
+    )
+    alpha = 0.10
+    target = 1.0 - alpha
+    h = 5
+    window = 500
 
-    def post_shift_cov(cfg: ConformalTubeV2Config) -> float:
+    def run_trace(cfg: ConformalTubeV2Config) -> tuple[float, float, np.ndarray]:
         tube = ConformalThroughputTubeV2(cfg)
-        h = cfg.horizon
-        hits = []
+        post_hits: list[float] = []
         for t, actual in enumerate(trace):
             bounds = tube.horizon_lower_bounds_kbps(h, decision_chunk=t)
-            if t >= n // 2 + h:
-                hits.append(float(actual) >= float(bounds[0]) - 1e-6)
+            if t >= shift + h:
+                post_hits.append(float(actual) >= float(bounds[0]) - 1e-6)
             tube.observe(float(actual), realized_chunk=t)
-        return float(np.mean(hits)) if hits else 0.0
+        burn = 3000
+        settled = post_hits[burn:] if len(post_hits) > burn else post_hits
+        post_roll = float(np.mean(settled[-window:])) if len(settled) >= window else float(
+            np.mean(settled)
+        )
+        long_run = float(np.mean(post_hits[-5000:])) if len(post_hits) >= 5000 else float(
+            np.mean(post_hits)
+        )
+        return post_roll, long_run, tube._alpha_t.copy()
 
     cfg_static = ConformalTubeV2Config(
-        mode="per_step", alpha=0.10, horizon=3, use_aci=False, cold_start_cap=0.5
+        mode="bonferroni", alpha=alpha, horizon=h, use_aci=False, cold_start_cap=0.5
     )
     cfg_aci = ConformalTubeV2Config(
-        mode="per_step",
-        alpha=0.10,
-        horizon=3,
+        mode="bonferroni",
+        alpha=alpha,
+        horizon=h,
         use_aci=True,
-        aci_gamma=0.02,
+        aci_gamma=0.01,
         cold_start_cap=0.5,
     )
-    cov_static = post_shift_cov(cfg_static)
-    cov_aci = post_shift_cov(cfg_aci)
-    assert cov_aci != cov_static
-    assert cov_aci >= cov_static - 0.02
+    post_static, long_static, _ = run_trace(cfg_static)
+    post_aci, long_aci, alpha_t = run_trace(cfg_aci)
+    base = ConformalThroughputTubeV2(cfg_aci)._base_alpha_per_step()
+    assert not np.allclose(alpha_t, base, atol=1e-4)
+    assert post_aci != post_static
+    margin = 0.01
+    assert abs(post_aci - target) + margin < abs(post_static - target)
+    assert abs(long_aci - target) + margin < abs(long_static - target)
+    assert abs(long_aci - target) <= 0.05
+
+
+def test_cold_start_gate_uses_nominal_alpha_not_aci() -> None:
+    cfg = ConformalTubeV2Config(
+        mode="bonferroni", alpha=0.10, horizon=5, use_aci=True, aci_gamma=0.05
+    )
+    tube = ConformalThroughputTubeV2(cfg)
+    nominal = float(tube._base_alpha_per_step()[0])
+    need = tube._min_calib(nominal)
+    for _ in range(need):
+        tube._scores[0].append(0.05)
+    assert not tube._in_cold_start(0)
+    _, lo, _ = tube._alpha_bounds(0)
+    tube._alpha_t[0] = lo
+    assert not tube._in_cold_start(0)
 
 
 def test_bounds_non_increasing_on_random_walk() -> None:
@@ -206,8 +241,12 @@ def test_existing_arms_regression() -> None:
     if not trace_dir.is_dir():
         pytest.skip("5g_markov traces missing")
     for arm in REGRESSION_ARMS:
-        a = run_arm("bba", trace_dir, arm, REGRESSION_EPS, workers=1)
-        b = run_arm("bba", trace_dir, arm, REGRESSION_EPS, workers=1)
+        a = run_arm(
+            "bba", trace_dir, arm, REGRESSION_EPS, workers=1, trace_key="5g_markov"
+        )
+        b = run_arm(
+            "bba", trace_dir, arm, REGRESSION_EPS, workers=1, trace_key="5g_markov"
+        )
         assert len(a) == len(b)
         for ra, rb in zip(a, b):
             for k in ra:

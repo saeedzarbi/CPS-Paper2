@@ -539,11 +539,21 @@ def _wrap_projector(base_policy, proj):
     return _Wrapped()
 
 
+def _warm_start_tube_v2(policy: TubeV2ConformalPolicy, trace_set_key: str) -> None:
+    from configs.trace_sets_v2 import calibration_dirs_for_eval
+    from src.training.tube_v2_calib import replay_throughputs_on_tube
+
+    dirs = calibration_dirs_for_eval(trace_set_key)
+    replay_throughputs_on_tube(policy.tube_mpc.tube, dirs)
+
+
 def make_controlled_policy(
     env,
     arm: EvalArm,
     base_policy,
     cfg: ControlArmConfig | None = None,
+    *,
+    trace_set_key: str = "",
 ):
     cfg = cfg or ControlArmConfig()
     configure_env_for_arm(env, arm)
@@ -576,7 +586,7 @@ def make_controlled_policy(
     parsed = parse_tube_v2_arm(str(arm))
     if parsed is not None:
         mode, use_aci, capped = parsed
-        return TubeV2ConformalPolicy(
+        pol = TubeV2ConformalPolicy(
             env,
             base_policy,
             cfg,
@@ -584,6 +594,9 @@ def make_controlled_policy(
             use_aci=use_aci,
             capped=capped,
         )
+        if trace_set_key:
+            _warm_start_tube_v2(pol, trace_set_key)
+        return pol
 
     if arm == "robust_mpc_logu":
         return RobustMPCLogUtilityPolicy(
@@ -593,11 +606,17 @@ def make_controlled_policy(
         )
 
     if arm == "mpc_fixed_quantile":
-        from configs.trace_sets_v2 import TRACE_SETS_V2
+        from configs.trace_sets_v2 import calibration_dirs_for_eval
 
-        train_dirs = [TRACE_SETS_V2[k]["train"] for k in TRACE_SETS_V2]
-        dirs = [p for p in train_dirs if p.is_dir()]
-        q = load_or_fit_quantile(dirs, alpha=cfg.alpha)
+        calib_key = trace_set_key or "5g_markov"
+        calib_dirs = calibration_dirs_for_eval(calib_key)
+        q = load_or_fit_quantile(
+            calib_dirs,
+            trace_set=calib_key,
+            split="calib",
+            alpha=cfg.alpha,
+            k_predict=5,
+        )
         return FixedQuantileMPCPolicy(
             env,
             q=q,

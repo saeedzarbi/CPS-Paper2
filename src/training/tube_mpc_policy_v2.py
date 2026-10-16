@@ -43,7 +43,7 @@ class TubeV2MPCPolicy:
         self.max_step_down = 1
 
     def on_episode_start(self) -> None:
-        self.tube.reset()
+        self.tube.reset_episode_state()
         self._last_video = None
 
     def _seqs(self, h: int) -> np.ndarray:

@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_Q_PATH = ROOT / "results" / "tube_v2" / "fixed_quantile_q.json"
+CACHE_ROOT = ROOT / "results" / "tube_v2"
 
 
 def _harmonic(vals: list[float]) -> float:
@@ -30,8 +30,13 @@ def fit_relative_error_quantile(
         if not tdir.is_dir():
             continue
         for path in sorted(tdir.glob("*.json")):
-            data = json.loads(path.read_text(encoding="utf-8"))
-            tp = data.get("throughput_kbps", [])
+            if path.name.startswith("trace_stats"):
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                tp = data.get("throughput_kbps", [])
+            except (json.JSONDecodeError, OSError):
+                continue
             hist: list[float] = []
             for actual in tp:
                 a = float(max(actual, 1e-6))
@@ -48,29 +53,48 @@ def fit_relative_error_quantile(
     return float(arr[rank - 1])
 
 
+def quantile_cache_path(
+    trace_set: str,
+    split: str,
+    alpha: float,
+    k_predict: int,
+) -> Path:
+    safe = f"fixed_quantile_q_{trace_set}_{split}_a{alpha:.4f}_k{k_predict}.json"
+    return CACHE_ROOT / safe
+
+
 def load_or_fit_quantile(
     trace_dirs: list[Path],
-    alpha: float = 0.10,
     *,
+    trace_set: str,
+    split: str = "calib",
+    alpha: float = 0.10,
+    k_predict: int = 5,
     force_refit: bool = False,
 ) -> float:
-    if DEFAULT_Q_PATH.is_file() and not force_refit:
-        data = json.loads(DEFAULT_Q_PATH.read_text(encoding="utf-8"))
+    path = quantile_cache_path(trace_set, split, alpha, k_predict)
+    if path.is_file() and not force_refit:
+        data = json.loads(path.read_text(encoding="utf-8"))
         return float(data.get("q", alpha))
-    q = fit_relative_error_quantile(trace_dirs, alpha=alpha)
-    DEFAULT_Q_PATH.parent.mkdir(parents=True, exist_ok=True)
+    q = fit_relative_error_quantile(trace_dirs, alpha=alpha, k_predict=k_predict)
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "q": q,
         "alpha": alpha,
+        "k_predict": k_predict,
+        "trace_set": trace_set,
+        "split": split,
         "trace_dirs": [str(p) for p in trace_dirs if p.is_dir()],
         "note": "L = hat*(1-q); compare to fixed_rho with rho = 1-q",
     }
-    DEFAULT_Q_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return q
 
 
-def log_fitted_quantile(q: float, alpha: float) -> None:
-    print(f"[mpc_fixed_quantile] fitted q={q:.6f} (alpha={alpha}, implied rho={1.0 - q:.6f}) path={DEFAULT_Q_PATH}")
+def log_fitted_quantile(q: float, alpha: float, path: Path) -> None:
+    print(
+        f"[mpc_fixed_quantile] fitted q={q:.6f} (alpha={alpha}, implied rho={1.0 - q:.6f}) path={path}"
+    )
 
 
 class FixedQuantileMPCPolicy:

@@ -7,6 +7,7 @@ Second-by-second trace integration, optional intra-chunk early abort, log-utilit
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import List, Union
@@ -217,9 +218,14 @@ class CleanABREnv(gym.Env):
                     continue
             self.video_assets[vid]["perchunk"] = perchunk
 
+    @staticmethod
+    def _stable_video_seed(video_name: str) -> int:
+        digest = hashlib.sha256(video_name.encode("utf-8")).digest()
+        return int.from_bytes(digest[:4], "big") % (2**31 - 1)
+
     def _generate_vbr_profiles(self):
         for vid in self.video_names:
-            rng = np.random.RandomState(abs(hash(vid)) % (2**31))
+            rng = np.random.RandomState(self._stable_video_seed(vid))
             n = self.max_chunks + 10
             profile = np.ones(n, dtype=np.float32)
             for i in range(n):
@@ -334,6 +340,12 @@ class CleanABREnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        if options is not None and "rng" in options:
+            self.np_random = options["rng"]
+        elif seed is not None:
+            self.np_random = np.random.default_rng(int(seed))
+        elif not hasattr(self, "np_random"):
+            self.np_random = np.random.default_rng()
         vid_idx = int(self.np_random.integers(0, len(self.video_names)))
         self.current_video_name = self.video_names[vid_idx]
         assets = self.video_assets[self.current_video_name]

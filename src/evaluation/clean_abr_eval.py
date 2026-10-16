@@ -18,7 +18,7 @@ from configs.videos import CPS_EPISODES, EVAL_VIDEOS, MAX_CHUNKS
 from src.control.two_timescale_conformal import ControlArmConfig, EvalArm, configure_env_for_arm, make_controlled_policy
 from src.environment.clean_abr_env import CleanABREnv
 from src.evaluation.eval_certified_shield_v18 import _bootstrap_ci, _wilcoxon, make_policy
-from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED, apply_episode_seeds
+from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED, apply_episode_seeds, episode_rng
 
 P = get_paths()
 QOE_REBUF_W = 4.3
@@ -86,12 +86,12 @@ def run_episode(
     trace_key: str = "",
 ) -> dict:
     if master_seed is not None and trace_key:
-        seed = apply_episode_seeds(master_seed, trace_key, ep)
+        seed, rng = apply_episode_seeds(master_seed, trace_key, ep)
     else:
         seed = 1000 + ep
+        rng = episode_rng(seed, trace_key or "legacy", ep)
         random.seed(seed)
-        np.random.seed(seed % (2**32 - 1))
-    obs, _ = env.reset(seed=seed)
+    obs, _ = env.reset(seed=seed, options={"rng": rng})
     if hasattr(policy, "on_episode_start"):
         policy.on_episode_start()
     chunk_rebufs: list[float] = []
@@ -150,6 +150,12 @@ def run_episode(
             jc = float(est.joint_coverage())
             row["joint_coverage_ep"] = jc
             row["joint_tube_coverage_decision"] = jc
+        if hasattr(est, "cold_start_fraction"):
+            row["tube_cold_start_frac"] = float(est.cold_start_fraction())
+        if hasattr(est, "mean_alpha_t"):
+            mat = float(est.mean_alpha_t())
+            if mat == mat:
+                row["tube_mean_alpha_t"] = mat
     return row
 
 
@@ -160,13 +166,25 @@ def _run_arm_episode_batch(
     episode_ids: list[int],
     cfg_dict: dict | None,
     time_decisions: bool,
+    trace_key: str,
+    master_seed: int,
 ) -> list[dict]:
     cfg = ControlArmConfig(**cfg_dict) if cfg_dict else None
     env = build_env(Path(trace_dir), arm)  # type: ignore[arg-type]
     base = make_policy(policy_kind, env, None, False)
-    controlled = make_controlled_policy(env, arm, base, cfg)  # type: ignore[arg-type]
+    controlled = make_controlled_policy(
+        env, arm, base, cfg, trace_set_key=trace_key
+    )  # type: ignore[arg-type]
     return [
-        run_episode(env, controlled, ep, time_decisions=time_decisions) for ep in episode_ids
+        run_episode(
+            env,
+            controlled,
+            ep,
+            time_decisions=time_decisions,
+            master_seed=master_seed,
+            trace_key=trace_key,
+        )
+        for ep in episode_ids
     ]
 
 
@@ -190,14 +208,25 @@ def run_arm(
     *,
     time_decisions: bool = False,
     workers: int | None = None,
+    master_seed: int = DEFAULT_MASTER_SEED,
+    trace_key: str = "",
 ) -> list[dict]:
     n_workers = workers if workers is not None else default_eval_workers()
     if n_workers <= 1 or episodes <= 1:
         env = build_env(trace_dir, arm)
         base = make_policy(policy_kind, env, None, False)
-        controlled = make_controlled_policy(env, arm, base, cfg)
+        controlled = make_controlled_policy(
+            env, arm, base, cfg, trace_set_key=trace_key
+        )
         return [
-            run_episode(env, controlled, ep, time_decisions=time_decisions)
+            run_episode(
+                env,
+                controlled,
+                ep,
+                time_decisions=time_decisions,
+                master_seed=master_seed,
+                trace_key=trace_key,
+            )
             for ep in range(episodes)
         ]
 
@@ -207,7 +236,8 @@ def run_arm(
     n_workers = min(n_workers, len(chunks))
     cfg_dict = asdict(cfg) if cfg else None
     task_args = [
-        (policy_kind, str(trace_dir), arm, ids, cfg_dict, time_decisions) for ids in chunks
+        (policy_kind, str(trace_dir), arm, ids, cfg_dict, time_decisions, trace_key, master_seed)
+        for ids in chunks
     ]
     rows: list[dict] = []
     with ProcessPoolExecutor(max_workers=n_workers) as pool:
@@ -233,6 +263,9 @@ def pair_comp(all_rows: dict[str, list[dict]], treat: str, ref: str) -> dict:
         _, p = _wilcoxon(a, b)
         out[k] = {"diff": float(a.mean() - b.mean()), "wilcoxon_p": p}
     return out
+
+
+_BOOTSTRAP_SEED = 42
 
 
 def write_job_out(
@@ -261,11 +294,11 @@ def write_job_out(
     for arm, rows in all_rows.items():
         summaries["arms"][arm] = {}
         for k in metric_cols:
-            m, lo, hi = _bootstrap_ci([r[k] for r in rows])
+            m, lo, hi = _bootstrap_ci([r[k] for r in rows], seed=_BOOTSTRAP_SEED)
             summaries["arms"][arm][k] = {"mean": m, "ci_lo": lo, "ci_hi": hi}
         if rows and "decision_latency_us_mean" in rows[0]:
             lat = [r["decision_latency_us_mean"] for r in rows]
-            m, lo, hi = _bootstrap_ci(lat)
+            m, lo, hi = _bootstrap_ci(lat, seed=_BOOTSTRAP_SEED)
             summaries["arms"][arm]["decision_latency_us_mean"] = {"mean": m, "ci_lo": lo, "ci_hi": hi}
     if "tube_conformal" in all_rows and "static_conformal" in all_rows:
         summaries["comparisons"]["tube_conformal_vs_static_conformal"] = pair_comp(

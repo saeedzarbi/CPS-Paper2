@@ -55,6 +55,8 @@ class ConformalThroughputTubeV2:
         self._cov_n = np.zeros(h, dtype=np.int64)
         self._joint_decision_flags: list[bool] = []
         self.last_joint_decision_covered: bool | None = None
+        self._n_decisions: int = 0
+        self._n_cold_decisions: int = 0
 
     def _base_alpha_per_step(self) -> np.ndarray:
         h = max(int(self.cfg.horizon), 1)
@@ -68,6 +70,12 @@ class ConformalThroughputTubeV2:
         self._scores = [deque(maxlen=self.cfg.window) for _ in range(h)]
         self._alpha_t = self._base_alpha_per_step().copy()
         self._obs.clear()
+        self.reset_episode_state()
+        self._n_decisions = 0
+        self._n_cold_decisions = 0
+
+    def reset_episode_state(self) -> None:
+        """Clear per-episode bookkeeping; keep score buffers and ACI state."""
         self._hats_by_decision.clear()
         self._bounds_by_decision.clear()
         self._actual_by_chunk.clear()
@@ -122,12 +130,15 @@ class ConformalThroughputTubeV2:
             return base
         return float(np.clip(self._alpha_t[step_idx], lo, hi))
 
+    def _in_cold_start(self, step_idx: int) -> bool:
+        nominal = float(self._base_alpha_per_step()[step_idx])
+        return len(self._scores[step_idx]) < self._min_calib(nominal)
+
     def _lower_from_hat(self, hat: float, step_idx: int) -> float:
-        alpha_h = self._quantile_alpha(step_idx)
-        n = len(self._scores[step_idx])
-        if n < self._min_calib(alpha_h):
+        miscoverage = self._quantile_alpha(step_idx)
+        if self._in_cold_start(step_idx):
             return float(self.cfg.cold_start_cap * hat)
-        q = self._finite_sample_quantile(self._scores[step_idx], alpha_h)
+        q = self._finite_sample_quantile(self._scores[step_idx], miscoverage)
         if self.cfg.score == "log":
             return float(hat * np.exp(-q))
         return float(hat * (1.0 - q))
@@ -147,6 +158,9 @@ class ConformalThroughputTubeV2:
         lbs = np.array([self._lower_from_hat(hat, j) for j in range(h)], dtype=float)
         lbs = np.maximum(lbs, self.cfg.min_kbps)
         if decision_chunk is not None:
+            self._n_decisions += 1
+            if self._in_cold_start(0):
+                self._n_cold_decisions += 1
             j = int(decision_chunk)
             self._hats_by_decision[j] = hats.copy()
             self._bounds_by_decision[j] = lbs.copy()
@@ -161,10 +175,10 @@ class ConformalThroughputTubeV2:
         self._scores[h_idx].append(s)
         if self.cfg.use_aci:
             base, lo, hi = self._alpha_bounds(h_idx)
-            err = 1.0 if not covered else 0.0
+            miss = 1.0 if not covered else 0.0
             self._alpha_t[h_idx] = float(
                 np.clip(
-                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (base - err),
+                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (miss - base),
                     lo,
                     hi,
                 )
@@ -202,6 +216,16 @@ class ConformalThroughputTubeV2:
         self._joint_decision_flags.append(ok)
         self.last_joint_decision_covered = ok
 
+    def ingest_calibration_sample(self, actual_kbps: float) -> None:
+        """Offline warm-start: append scores from (harmonic hat, actual) without MPC bounds."""
+        actual = float(max(actual_kbps, 1e-6))
+        hat = self.predict_point_kbps()
+        if hat > 0:
+            s = self._score(hat, actual)
+            for buf in self._scores:
+                buf.append(s)
+        self._obs.append(actual)
+
     def observe(self, actual_kbps: float, *, realized_chunk: int | None = None) -> None:
         actual = float(max(actual_kbps, 1e-6))
         c = int(realized_chunk if realized_chunk is not None else self._n_realized)
@@ -221,6 +245,16 @@ class ConformalThroughputTubeV2:
         if not self._joint_decision_flags:
             return float("nan")
         return float(np.mean(self._joint_decision_flags))
+
+    def cold_start_fraction(self) -> float:
+        if self._n_decisions <= 0:
+            return float("nan")
+        return float(self._n_cold_decisions / self._n_decisions)
+
+    def mean_alpha_t(self) -> float:
+        if not self.cfg.use_aci:
+            return float("nan")
+        return float(np.mean(self._alpha_t))
 
 
 __all__ = ["ConformalTubeV2Config", "ConformalThroughputTubeV2", "ScoreKind", "TubeMode"]
