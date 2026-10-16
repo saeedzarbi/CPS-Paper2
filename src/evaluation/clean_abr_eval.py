@@ -113,6 +113,7 @@ def run_episode(
 
     row = {
         "episode": ep,
+        "trace_id": str(getattr(env, "current_trace_idx", 0)),
         "video_name": str(env.current_video_name),
         "rebuffer_total": reb_total,
         "rebuffer_p95_chunk": reb_p95,
@@ -124,6 +125,14 @@ def run_episode(
     }
     if time_decisions and decision_us:
         row["decision_latency_us_mean"] = float(np.mean(decision_us))
+    tube_mpc = getattr(policy, "tube_mpc", None)
+    if tube_mpc is not None and hasattr(tube_mpc, "tube"):
+        est = tube_mpc.tube
+        if hasattr(est, "empirical_coverage_per_step"):
+            for i, v in enumerate(est.empirical_coverage_per_step()):
+                row[f"cov_h{i + 1}"] = float(v)
+        if hasattr(est, "joint_coverage"):
+            row["joint_coverage_ep"] = float(est.joint_coverage())
     return row
 
 

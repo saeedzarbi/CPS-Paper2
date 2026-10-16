@@ -13,7 +13,9 @@ import numpy as np
 
 from src.training.certified_perceptual_shield import ConformalConfig, ConformalThroughputEstimator
 from src.training.conformal_tube import ConformalTubeConfig
+from src.training.conformal_tube_v2 import ConformalTubeV2Config, TubeMode
 from src.training.tube_mpc_policy import TubeMPCConfig, TubeMPCPolicy
+from src.training.tube_mpc_policy_v2 import TubeV2MPCConfig, TubeV2MPCPolicy
 
 HeadlineArm = Literal["raw", "static_conformal", "tube_conformal"]
 AblationArm = Literal[
@@ -21,7 +23,17 @@ AblationArm = Literal[
     "symmetric_tube",
     "fixed_alpha_tube",
 ]
-EvalArm = Union[HeadlineArm, AblationArm]
+TubeV2Arm = Literal[
+    "tube_v2_bonf_static",
+    "tube_v2_bonf_aci",
+    "tube_v2_step_static",
+    "tube_v2_step_aci",
+    "tube_v2_bonf_static_nocap",
+    "tube_v2_bonf_aci_nocap",
+    "tube_v2_step_static_nocap",
+    "tube_v2_step_aci_nocap",
+]
+EvalArm = Union[HeadlineArm, AblationArm, TubeV2Arm]
 ArmName = HeadlineArm  # backward-compatible alias
 
 HEADLINE_ARMS: tuple[HeadlineArm, ...] = ("raw", "static_conformal", "tube_conformal")
@@ -33,6 +45,38 @@ ABLATION_ARMS: tuple[EvalArm, ...] = (
     "fixed_alpha_tube",
     "tube_conformal",
 )
+
+TUBE_V2_ARMS: tuple[TubeV2Arm, ...] = (
+    "tube_v2_bonf_static",
+    "tube_v2_bonf_aci",
+    "tube_v2_step_static",
+    "tube_v2_step_aci",
+    "tube_v2_bonf_static_nocap",
+    "tube_v2_bonf_aci_nocap",
+    "tube_v2_step_static_nocap",
+    "tube_v2_step_aci_nocap",
+)
+
+
+def parse_tube_v2_arm(arm: str) -> tuple[TubeMode, bool, bool] | None:
+    """Return (mode, use_aci, capped) or None if not a tube_v2 arm name."""
+    if not arm.startswith("tube_v2_"):
+        return None
+    capped = True
+    if arm.endswith("_nocap"):
+        capped = False
+        arm = arm[: -len("_nocap")]
+    tail = arm[len("tube_v2_") :]
+    mapping: dict[str, tuple[TubeMode, bool]] = {
+        "bonf_static": ("bonferroni", False),
+        "bonf_aci": ("bonferroni", True),
+        "step_static": ("per_step", False),
+        "step_aci": ("per_step", True),
+    }
+    if tail not in mapping:
+        return None
+    mode, aci = mapping[tail]
+    return mode, aci, capped
 
 
 @dataclass
@@ -355,6 +399,56 @@ class SymmetricTubeConformalPolicy:
         return self.tube.plan_action(), None
 
 
+class TubeV2ConformalPolicy:
+    """Tube-v2 MPC with optional static 1-step cap (``min(tube, static)``)."""
+
+    def __init__(
+        self,
+        env,
+        base_policy,
+        cfg: ControlArmConfig | None = None,
+        *,
+        mode: TubeMode = "per_step",
+        use_aci: bool = False,
+        capped: bool = True,
+    ):
+        self.env = env
+        self.base = base_policy
+        self.cfg = cfg or ControlArmConfig()
+        self.capped = capped
+        self.static = StaticConformalProjector(env, self.cfg, adapt=True)
+        eff = self.cfg.effective_safety_margin()
+        tube_cfg = ConformalTubeV2Config(
+            mode=mode,
+            alpha=self.cfg.alpha,
+            horizon=self.cfg.horizon,
+            use_aci=use_aci,
+            cold_start_cap=self.cfg.cold_start_cap,
+            conformal=ConformalConfig(alpha=self.cfg.alpha, window=200, k_predict=5),
+        )
+        self.tube_mpc = TubeV2MPCPolicy(
+            env,
+            TubeV2MPCConfig(
+                horizon=self.cfg.horizon,
+                safety_margin=eff,
+                tube=tube_cfg,
+                pruning="monotone",
+            ),
+        )
+
+    def on_episode_start(self) -> None:
+        self.static.on_episode_start()
+        self.tube_mpc.on_episode_start()
+
+    def predict(self, obs, deterministic=True):
+        a_base, _ = self.base.predict(obs, deterministic=deterministic)
+        a_tube = int(self.tube_mpc.plan_action())
+        if not self.capped:
+            return a_tube, None
+        a_static = int(self.static.max_safe_action(int(a_base)))
+        return int(min(a_tube, a_static)), None
+
+
 class TubeConformalPolicy:
     """Tube MPC + planning, capped by static 1-step safe rung."""
 
@@ -444,6 +538,18 @@ def make_controlled_policy(
 
     if arm == "tube_conformal":
         return TubeConformalPolicy(env, base_policy, cfg, use_aci=True)
+
+    parsed = parse_tube_v2_arm(str(arm))
+    if parsed is not None:
+        mode, use_aci, capped = parsed
+        return TubeV2ConformalPolicy(
+            env,
+            base_policy,
+            cfg,
+            mode=mode,
+            use_aci=use_aci,
+            capped=capped,
+        )
 
     raise ValueError(f"unknown arm: {arm}")
 

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from configs.paths import STANDARDIZED_DIR
+from src.control.two_timescale_conformal import TUBE_V2_ARMS, parse_tube_v2_arm
 from src.evaluation.clean_abr_eval import HEADLINE_TRACE_SETS, build_env, run_arm
 from src.training.certified_perceptual_shield import ConformalConfig, ConformalThroughputEstimator
 from src.training.conformal_tube_v2 import ConformalThroughputTubeV2, ConformalTubeV2Config
@@ -173,6 +174,12 @@ def test_tube_v2_planner_latency_order() -> None:
         env.reset(seed=1000)
         lat[mode] = pol.benchmark_plan_latency_us(repeats=5)
     assert lat["none"] > 0 and lat["monotone"] > 0 and lat["beam"] > 0
+
+
+def test_tube_v2_arm_names() -> None:
+    assert parse_tube_v2_arm("tube_v2_bonf_aci") == ("bonferroni", True, True)
+    assert parse_tube_v2_arm("tube_v2_step_static_nocap") == ("per_step", False, False)
+    assert len(TUBE_V2_ARMS) == 8
 
 
 def test_tube_v2_bounds_not_constant() -> None:
