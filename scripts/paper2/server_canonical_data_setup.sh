@@ -21,5 +21,7 @@ python scripts/paper2/build_trace_manifests.py --verify
 rm -rf "${ROOT}/results/tube_v2/phase2"
 mkdir -p "${ROOT}/results/tube_v2/phase2"
 
-echo "Setup OK. Launch verified pilot with:"
-echo "  tmux new -d -s phase2 'cd ${ROOT} && source .venv-tube-v2/bin/activate && export OMP_NUM_THREADS=1 && python src/evaluation/run_tube_v2_phase2.py --pilot --trace-sets 5g_markov 5g_harsh bb --workers 1 > results/tube_v2/phase2/run.log 2>&1'"
+echo "Setup OK. Launch verified pilot (detached; tmux optional if installed):"
+echo "  nohup bash -lc 'source .venv-tube-v2/bin/activate && export OMP_NUM_THREADS=1 && python src/evaluation/run_tube_v2_phase2.py --pilot --trace-sets 5g_markov 5g_harsh bb --workers 1 --no-resume' > results/tube_v2/phase2/run.log 2>&1 &"
+echo "  tail -f results/tube_v2/phase2/run.log"
+echo "  test -f results/tube_v2/phase2/DONE.json && echo finished"
