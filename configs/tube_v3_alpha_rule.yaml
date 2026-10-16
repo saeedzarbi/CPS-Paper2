@@ -1,0 +1,31 @@
+# PRE-REGISTERED alpha-selection rule for Tube-v3 adaptive (_safe / _fs) arms.
+# Committed BEFORE any validation run of these arms. Applied mechanically by
+# src/evaluation/select_alpha_rule.py to VAL results only; test split never used.
+split: val
+episodes_per_arm: 100
+alpha_grid: [0.1, 0.15, 0.2]
+variants:                       # arm = tube_v2_<variant base>_a<alpha><suffix>
+  - maxscore_safe_fs            # PRIMARY (joint theorem + pre-refill safety lemma both apply)
+  - step_static_safe_fs
+  - maxscore_safe
+  - step_static_safe
+primary_variant: maxscore_safe_fs
+families: [5g_markov, 5g_harsh, bb, 5g_irish]
+reference_arm: robust_mpc_logu
+# Tail criterion (per family f, variant V, alpha a), paired by (trace_file, episode):
+#   T(arm) = 90th percentile (numpy 'linear') of per-episode rebuffer_total (s) over the 100 val episodes.
+#   D = T(arm) - T(reference_arm).  Trace-cluster bootstrap: resample trace_files with replacement
+#   (B=4000, numpy default_rng(0)), recompute D on the pooled episodes of the resampled traces.
+#   U = 95th percentile of bootstrap D (one-sided 95% upper bound).
+#   alpha is ADMISSIBLE iff U <= tail_tolerance_s.
+tail_quantile: 0.90
+bootstrap_B: 4000
+bootstrap_seed: 0
+upper_ci_level: 0.95
+tail_tolerance_s: 0.25
+# Per-family choice: among admissible alphas, the one with the highest mean val episodic_qoe
+# (= smallest QoE loss); ties (|dQoE| < 1e-9) -> smaller alpha.
+# If no alpha is admissible: the alpha with the smallest U; ties -> smaller alpha. Flagged "no admissible".
+# Global choice (single alpha for all families): among alphas admissible in EVERY family, the one with
+# the highest macro-average (unweighted mean over families) val QoE; if none, alpha with the smallest
+# max_f U_f; ties -> smaller alpha.
