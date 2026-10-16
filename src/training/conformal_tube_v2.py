@@ -31,6 +31,7 @@ class ConformalTubeV2Config:
     score: ScoreKind = "relative"
     use_aci: bool = False
     aci_gamma: float = 0.005
+    aci_invert_sign: bool = False
     min_kbps: float = 10.0
     cold_start_cap: float = 0.80
     conformal: ConformalConfig = field(
@@ -57,6 +58,8 @@ class ConformalThroughputTubeV2:
         self.last_joint_decision_covered: bool | None = None
         self._n_decisions: int = 0
         self._n_cold_decisions: int = 0
+        self._aci_updates: int = 0
+        self._aci_at_clip: int = 0
 
     def _base_alpha_per_step(self) -> np.ndarray:
         h = max(int(self.cfg.horizon), 1)
@@ -73,6 +76,8 @@ class ConformalThroughputTubeV2:
         self.reset_episode_state()
         self._n_decisions = 0
         self._n_cold_decisions = 0
+        self._aci_updates = 0
+        self._aci_at_clip = 0
 
     def reset_episode_state(self) -> None:
         """Clear per-episode bookkeeping; keep score buffers and ACI state."""
@@ -175,14 +180,13 @@ class ConformalThroughputTubeV2:
         self._scores[h_idx].append(s)
         if self.cfg.use_aci:
             base, lo, hi = self._alpha_bounds(h_idx)
-            miss = 1.0 if not covered else 0.0
-            self._alpha_t[h_idx] = float(
-                np.clip(
-                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (miss - base),
-                    lo,
-                    hi,
-                )
-            )
+            err = 1.0 if not covered else 0.0
+            delta = (base - err) if not self.cfg.aci_invert_sign else (err - base)
+            new_a = float(np.clip(self._alpha_t[h_idx] + self.cfg.aci_gamma * delta, lo, hi))
+            self._aci_updates += 1
+            if new_a <= lo + 1e-15 or new_a >= hi - 1e-15:
+                self._aci_at_clip += 1
+            self._alpha_t[h_idx] = new_a
 
     def _register_marginal_scores(self, actual: float, realized_chunk: int | None) -> None:
         c = int(realized_chunk if realized_chunk is not None else self._n_realized)
@@ -255,6 +259,11 @@ class ConformalThroughputTubeV2:
         if not self.cfg.use_aci:
             return float("nan")
         return float(np.mean(self._alpha_t))
+
+    def aci_clip_fraction(self) -> float:
+        if self._aci_updates <= 0:
+            return float("nan")
+        return float(self._aci_at_clip / self._aci_updates)
 
 
 __all__ = ["ConformalTubeV2Config", "ConformalThroughputTubeV2", "ScoreKind", "TubeMode"]

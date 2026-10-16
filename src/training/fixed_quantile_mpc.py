@@ -55,11 +55,11 @@ def fit_relative_error_quantile(
 
 def quantile_cache_path(
     trace_set: str,
-    split: str,
+    variant: str,
     alpha: float,
     k_predict: int,
 ) -> Path:
-    safe = f"fixed_quantile_q_{trace_set}_{split}_a{alpha:.4f}_k{k_predict}.json"
+    safe = f"fixed_quantile_q_{trace_set}_{variant}_a{alpha:.4f}_k{k_predict}.json"
     return CACHE_ROOT / safe
 
 
@@ -67,12 +67,12 @@ def load_or_fit_quantile(
     trace_dirs: list[Path],
     *,
     trace_set: str,
-    split: str = "calib",
+    variant: str = "calib",
     alpha: float = 0.10,
     k_predict: int = 5,
     force_refit: bool = False,
 ) -> float:
-    path = quantile_cache_path(trace_set, split, alpha, k_predict)
+    path = quantile_cache_path(trace_set, variant, alpha, k_predict)
     if path.is_file() and not force_refit:
         data = json.loads(path.read_text(encoding="utf-8"))
         return float(data.get("q", alpha))
@@ -83,7 +83,7 @@ def load_or_fit_quantile(
         "alpha": alpha,
         "k_predict": k_predict,
         "trace_set": trace_set,
-        "split": split,
+        "variant": variant,
         "trace_dirs": [str(p) for p in trace_dirs if p.is_dir()],
         "note": "L = hat*(1-q); compare to fixed_rho with rho = 1-q",
     }

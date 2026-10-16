@@ -17,13 +17,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from configs.paths import STANDARDIZED_DIR
-from configs.trace_sets_v2 import TRACE_SETS_V2, calibration_dirs_for_eval
-from configs.videos import CPS_EPISODES
-from src.control.two_timescale_conformal import (
-    SMOKE_ARMS,
-    TUBE_V2_ARMS,
-    ControlArmConfig,
+from configs.trace_sets_v2 import (
+    TRACE_SETS_V2,
+    calibration_bundles_for_eval,
+    ensure_smoke_calibration_data,
+    resolve_trace_dir,
 )
+from configs.videos import CPS_EPISODES
+from src.control.two_timescale_conformal import SMOKE_ARMS, TUBE_V2_ARMS, ControlArmConfig
 from src.evaluation.clean_abr_eval import build_env, run_episode, write_job_out
 from src.evaluation.eval_certified_shield_v18 import make_policy
 from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED
@@ -89,24 +90,26 @@ def _append_row(path: Path, row: dict) -> None:
         os.fsync(f.fileno())
 
 
-def _prefit_quantile(trace_sets: list[str], force: bool) -> dict[str, float]:
-    qs: dict[str, float] = {}
+def _prefit_quantile(trace_sets: list[str], force: bool) -> dict[str, tuple[str, float]]:
+    qs: dict[str, tuple[str, float]] = {}
     for ts in trace_sets:
         try:
-            dirs = calibration_dirs_for_eval(ts)
+            bundles = calibration_bundles_for_eval(ts)
         except (FileNotFoundError, KeyError) as e:
             print("SKIP quantile prefit", ts, e)
             continue
-        q = load_or_fit_quantile(
-            dirs,
-            trace_set=ts,
-            split="calib",
-            alpha=0.10,
-            k_predict=5,
-            force_refit=force,
-        )
-        qs[ts] = q
-        log_fitted_quantile(q, 0.10, quantile_cache_path(ts, "calib", 0.10, 5))
+        for bundle in bundles:
+            q = load_or_fit_quantile(
+                list(bundle.dirs),
+                trace_set=ts,
+                variant=bundle.cache_suffix,
+                alpha=0.10,
+                k_predict=5,
+                force_refit=force,
+            )
+            key = f"{ts}:{bundle.cache_suffix}"
+            qs[key] = (bundle.label, q)
+            log_fitted_quantile(q, 0.10, quantile_cache_path(ts, bundle.cache_suffix, 0.10, 5))
     return qs
 
 
@@ -155,12 +158,12 @@ def _resolve_trace(trace_set: str, split: str, data_dir: Path | None) -> Path:
     if data_dir is not None:
         os.environ["CPS_DATA_DIR"] = str(data_dir)
         os.environ["CPS_PAPER2_DATA_ROOT"] = str(data_dir)
+    if trace_set == "5g_harsh" and split == "test":
+        return resolve_trace_dir("5g_harsh", "test")
     if trace_set in SMOKE_TRACE_SETS:
         p = SMOKE_TRACE_SETS[trace_set]
         if p.is_dir():
             return p
-    from configs.trace_sets_v2 import resolve_trace_dir
-
     return resolve_trace_dir(trace_set, split)
 
 
@@ -260,8 +263,9 @@ def smoke_table(
     trace_sets: tuple[str, ...],
     episodes: int,
     *,
-    fitted_q: dict[str, float] | None = None,
+    fitted_q: dict[str, tuple[str, float]] | None = None,
     determinism_note: str = "",
+    pareto_trace: str = "5g_harsh",
 ) -> str:
     lines = [
         "# Tube-v2 smoke (Phase 3 baselines + tube_v2 ACI)",
@@ -270,8 +274,8 @@ def smoke_table(
         "",
     ]
     if fitted_q:
-        for ts, q in sorted(fitted_q.items()):
-            lines.append(f"`mpc_fixed_quantile` q={q:.4f} (trace_set={ts}, calib train/val).")
+        for key, (label, q) in sorted(fitted_q.items()):
+            lines.append(f"`mpc_fixed_quantile` q={q:.4f} ({label}; key={key}).")
         lines.append("")
     if determinism_note:
         lines.extend([determinism_note, ""])
@@ -309,6 +313,34 @@ def smoke_table(
                     at=_mean_col(rows, "tube_mean_alpha_t"),
                 )
             )
+    lines.extend(["", f"## QoE vs rebuffer Pareto (`{pareto_trace}`)", ""])
+    lines.append("| arm | mean QoE | mean rebuf | Pareto |")
+    lines.append("|-----|----------|------------|--------|")
+    pareto_rows: list[tuple[str, float, float]] = []
+    for arm in arms:
+        path = _episode_csv(3, pareto_trace, "bba", arm)
+        if not path.is_file():
+            continue
+        with path.open(encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        if not rows:
+            continue
+        qoe = float(sum(float(r["episodic_qoe"]) for r in rows) / len(rows))
+        reb = float(sum(float(r["rebuffer_total"]) for r in rows) / len(rows))
+        pareto_rows.append((arm, qoe, reb))
+    def _pareto_optimal(arm: str) -> bool:
+        q0, r0 = next((q, r) for a, q, r in pareto_rows if a == arm)
+        for a, q, r in pareto_rows:
+            if a == arm:
+                continue
+            if q >= q0 and r <= r0 and (q > q0 or r < r0):
+                return False
+        return True
+
+    frontier_set = {arm for arm, _, _ in pareto_rows if _pareto_optimal(arm)}
+    for arm, qoe, reb in pareto_rows:
+        mark = "yes" if arm in frontier_set else ""
+        lines.append(f"| `{arm}` | {qoe:.2f} | {reb:.3f} | {mark} |")
     return "\n".join(lines) + "\n"
 
 
@@ -377,9 +409,10 @@ def main() -> int:
         hosts = ["bba"]
         resume = False
         refit = True
+        ensure_smoke_calibration_data(trace_sets)
 
     determinism_note = ""
-    fitted_q: dict[str, float] = {}
+    fitted_q: dict[str, tuple[str, float]] = {}
     snapshot_a: Path | None = None
 
     if args.smoke:

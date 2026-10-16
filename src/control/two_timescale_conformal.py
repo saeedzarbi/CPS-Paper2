@@ -32,10 +32,12 @@ AblationArm = Literal[
 BaselineArm = Literal[
     "robust_mpc_logu",
     "mpc_fixed_quantile",
+    "mpc_fixed_quantile_harsh",
+    "mpc_fixed_rho_0.5",
+    "mpc_fixed_rho_0.55",
     "mpc_fixed_rho_0.6",
+    "mpc_fixed_rho_0.65",
     "mpc_fixed_rho_0.7",
-    "mpc_fixed_rho_0.8",
-    "mpc_fixed_rho_0.9",
 ]
 TubeV2Arm = Literal[
     "tube_v2_bonf_static",
@@ -60,16 +62,18 @@ ABLATION_ARMS: tuple[EvalArm, ...] = (
     "tube_conformal",
 )
 
+RHO_SWEEP_ARMS: tuple[str, ...] = tuple(
+    f"mpc_fixed_rho_{rho}" for rho in ("0.5", "0.55", "0.6", "0.65", "0.7")
+)
+
 PHASE3_BASELINE_ARMS: tuple[str, ...] = (
     "raw",
     "static_conformal",
     "tube_conformal",
     "robust_mpc_logu",
     "mpc_fixed_quantile",
-    "mpc_fixed_rho_0.6",
-    "mpc_fixed_rho_0.7",
-    "mpc_fixed_rho_0.8",
-    "mpc_fixed_rho_0.9",
+    "mpc_fixed_quantile_harsh",
+    *RHO_SWEEP_ARMS,
     "tube_v2_step_static_nocap",
 )
 
@@ -543,7 +547,8 @@ def _warm_start_tube_v2(policy: TubeV2ConformalPolicy, trace_set_key: str) -> No
     from configs.trace_sets_v2 import calibration_dirs_for_eval
     from src.training.tube_v2_calib import replay_throughputs_on_tube
 
-    dirs = calibration_dirs_for_eval(trace_set_key)
+    variant = "native" if trace_set_key == "5g_harsh" else "default"
+    dirs = calibration_dirs_for_eval(trace_set_key, variant=variant)
     replay_throughputs_on_tube(policy.tube_mpc.tube, dirs)
 
 
@@ -605,15 +610,20 @@ def make_controlled_policy(
             safety_margin=cfg.effective_safety_margin(),
         )
 
-    if arm == "mpc_fixed_quantile":
+    if arm in ("mpc_fixed_quantile", "mpc_fixed_quantile_harsh"):
         from configs.trace_sets_v2 import calibration_dirs_for_eval
 
-        calib_key = trace_set_key or "5g_markov"
-        calib_dirs = calibration_dirs_for_eval(calib_key)
+        ts = trace_set_key or "5g_markov"
+        if arm == "mpc_fixed_quantile_harsh":
+            calib_dirs = calibration_dirs_for_eval(ts, variant="native")
+            variant = "harsh_native"
+        else:
+            variant = "markov_transfer" if ts == "5g_harsh" else "calib"
+            calib_dirs = calibration_dirs_for_eval(ts, variant=variant)
         q = load_or_fit_quantile(
             calib_dirs,
-            trace_set=calib_key,
-            split="calib",
+            trace_set=ts,
+            variant=variant,
             alpha=cfg.alpha,
             k_predict=5,
         )
