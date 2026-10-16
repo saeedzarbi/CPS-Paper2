@@ -1,14 +1,10 @@
-# Tube-v2 execution on server 45 (`45.195.250.136`)
+# Tube-v2 execution (dedicated VPS)
 
 Dedicated host for **Tube-v2** campaigns (`cursor_prompt_paper2.md`). Shared **tools-new** stays for legacy `clean_v3_extended` only.
 
 ## Access
 
-Credentials: gitignored `server.txt` (`ip`, `user`, `pass`). Remote tree: `/root/CPS-Paper2`.
-
-```bash
-# From laptop (paramiko scripts) or SSH as root with password from server.txt
-```
+Credentials: gitignored `server.txt`. Typical remote tree: `/root/CPS-Paper2`.
 
 ## CHECKPOINT 0 — done on host (2026-10-16)
 

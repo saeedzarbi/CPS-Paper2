@@ -81,7 +81,7 @@ python scripts/paper2/mattermost_notify.py "clean_v3 smoke OK"
 
 ## 8. Tube-v2 (dedicated VPS, server 45)
 
-Headline Tube-v2 campaigns run on **`45.195.250.136`** (credentials in gitignored `server.txt`), not tools-new. See [`docs/tube_v2_server_45.md`](tube_v2_server_45.md).
+Headline Tube-v2 campaigns run on a **dedicated VPS** (SSH credentials in gitignored `server.txt`), not tools-new. See [`docs/tube_v2_server_45.md`](tube_v2_server_45.md).
 
 ```bash
 cd /root/CPS-Paper2 && git pull origin main

@@ -61,8 +61,32 @@ def test_bonferroni_joint_coverage(alpha: float, horizon: int) -> None:
     cfg = ConformalTubeV2Config(
         mode="bonferroni", alpha=alpha, horizon=horizon, use_aci=False, cold_start_cap=0.5
     )
-    _, joint = _simulate_joint_coverage(cfg, n=25_000, seed=horizon * 3 + int(alpha * 100))
-    assert joint >= 1.0 - alpha - 0.02
+    rates, joint_sim = _simulate_joint_coverage(cfg, n=25_000, seed=horizon * 3 + int(alpha * 100))
+    assert joint_sim >= 1.0 - alpha - 0.02
+    # API joint (per completed decision, bounds frozen at issue time)
+    tube = ConformalThroughputTubeV2(cfg)
+    h = horizon
+    tp = _lognormal_stream(np.random.default_rng(horizon * 3 + int(alpha * 100)), 25_000)
+    for t, actual in enumerate(tp):
+        tube.horizon_lower_bounds_kbps(h, decision_chunk=t)
+        tube.observe(float(actual), realized_chunk=t)
+    assert abs(tube.joint_coverage() - joint_sim) < 0.015
+
+
+@pytest.mark.parametrize("alpha", [0.10])
+@pytest.mark.parametrize("horizon", [5])
+def test_bonferroni_aci_per_step_coverage(alpha: float, horizon: int) -> None:
+    cfg = ConformalTubeV2Config(
+        mode="bonferroni",
+        alpha=alpha,
+        horizon=horizon,
+        use_aci=True,
+        aci_gamma=0.01,
+        cold_start_cap=0.5,
+    )
+    rates, _ = _simulate_joint_coverage(cfg, n=25_000, seed=909)
+    alpha_h = alpha / horizon
+    assert float(np.min(rates)) >= 1.0 - alpha_h - 0.02
 
 
 def test_bounds_non_increasing_on_random_walk() -> None:

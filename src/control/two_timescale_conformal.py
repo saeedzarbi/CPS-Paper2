@@ -15,6 +15,8 @@ from src.training.certified_perceptual_shield import ConformalConfig, ConformalT
 from src.training.conformal_tube import ConformalTubeConfig
 from src.training.conformal_tube_v2 import ConformalTubeV2Config, TubeMode
 from src.training.tube_mpc_policy import TubeMPCConfig, TubeMPCPolicy
+from src.training.fixed_quantile_mpc import FixedQuantileMPCPolicy, FixedRhoMPCPolicy, load_or_fit_quantile
+from src.training.robust_mpc_logu_policy import RobustMPCLogUtilityPolicy
 from src.training.tube_mpc_policy_v2 import TubeV2MPCConfig, TubeV2MPCPolicy
 
 HeadlineArm = Literal["raw", "static_conformal", "tube_conformal"]
@@ -22,6 +24,14 @@ AblationArm = Literal[
     "heuristic_85",
     "symmetric_tube",
     "fixed_alpha_tube",
+]
+BaselineArm = Literal[
+    "robust_mpc_logu",
+    "mpc_fixed_quantile",
+    "mpc_fixed_rho_0.6",
+    "mpc_fixed_rho_0.7",
+    "mpc_fixed_rho_0.8",
+    "mpc_fixed_rho_0.9",
 ]
 TubeV2Arm = Literal[
     "tube_v2_bonf_static",
@@ -33,7 +43,7 @@ TubeV2Arm = Literal[
     "tube_v2_step_static_nocap",
     "tube_v2_step_aci_nocap",
 ]
-EvalArm = Union[HeadlineArm, AblationArm, TubeV2Arm]
+EvalArm = Union[HeadlineArm, AblationArm, TubeV2Arm, BaselineArm]
 ArmName = HeadlineArm  # backward-compatible alias
 
 HEADLINE_ARMS: tuple[HeadlineArm, ...] = ("raw", "static_conformal", "tube_conformal")
@@ -44,6 +54,19 @@ ABLATION_ARMS: tuple[EvalArm, ...] = (
     "symmetric_tube",
     "fixed_alpha_tube",
     "tube_conformal",
+)
+
+PHASE3_BASELINE_ARMS: tuple[str, ...] = (
+    "raw",
+    "static_conformal",
+    "tube_conformal",
+    "robust_mpc_logu",
+    "mpc_fixed_quantile",
+    "mpc_fixed_rho_0.6",
+    "mpc_fixed_rho_0.7",
+    "mpc_fixed_rho_0.8",
+    "mpc_fixed_rho_0.9",
+    "tube_v2_step_static_nocap",
 )
 
 TUBE_V2_ARMS: tuple[TubeV2Arm, ...] = (
@@ -549,6 +572,34 @@ def make_controlled_policy(
             mode=mode,
             use_aci=use_aci,
             capped=capped,
+        )
+
+    if arm == "robust_mpc_logu":
+        return RobustMPCLogUtilityPolicy(
+            env,
+            horizon=cfg.horizon,
+            safety_margin=cfg.effective_safety_margin(),
+        )
+
+    if arm == "mpc_fixed_quantile":
+        from configs.trace_sets_v2 import TRACE_SETS_V2
+
+        train_dirs = [TRACE_SETS_V2[k]["train"] for k in TRACE_SETS_V2]
+        q = load_or_fit_quantile([p for p in train_dirs if p.is_dir()], alpha=cfg.alpha)
+        return FixedQuantileMPCPolicy(
+            env,
+            q=q,
+            horizon=cfg.horizon,
+            safety_margin=cfg.effective_safety_margin(),
+        )
+
+    if str(arm).startswith("mpc_fixed_rho_"):
+        rho = float(str(arm).split("_")[-1])
+        return FixedRhoMPCPolicy(
+            env,
+            rho=rho,
+            horizon=cfg.horizon,
+            safety_margin=cfg.effective_safety_margin(),
         )
 
     raise ValueError(f"unknown arm: {arm}")

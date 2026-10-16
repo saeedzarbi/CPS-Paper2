@@ -47,12 +47,14 @@ class ConformalThroughputTubeV2:
         self._scores: list[deque[float]] = [deque(maxlen=self.cfg.window) for _ in range(h)]
         self._alpha_t: np.ndarray = self._base_alpha_per_step().copy()
         self._obs: deque[float] = deque(maxlen=max(self.cfg.conformal.k_predict, 1))
-        self._pred_by_decision: dict[int, np.ndarray] = {}
+        self._hats_by_decision: dict[int, np.ndarray] = {}
+        self._bounds_by_decision: dict[int, np.ndarray] = {}
+        self._actual_by_chunk: dict[int, float] = {}
         self._n_realized: int = 0
         self._cov_hits = np.zeros(h, dtype=np.int64)
         self._cov_n = np.zeros(h, dtype=np.int64)
-        self._joint_hits = 0
-        self._joint_n = 0
+        self._joint_decision_flags: list[bool] = []
+        self.last_joint_decision_covered: bool | None = None
 
     def _base_alpha_per_step(self) -> np.ndarray:
         h = max(int(self.cfg.horizon), 1)
@@ -66,12 +68,14 @@ class ConformalThroughputTubeV2:
         self._scores = [deque(maxlen=self.cfg.window) for _ in range(h)]
         self._alpha_t = self._base_alpha_per_step().copy()
         self._obs.clear()
-        self._pred_by_decision.clear()
+        self._hats_by_decision.clear()
+        self._bounds_by_decision.clear()
+        self._actual_by_chunk.clear()
         self._n_realized = 0
         self._cov_hits[:] = 0
         self._cov_n[:] = 0
-        self._joint_hits = 0
-        self._joint_n = 0
+        self._joint_decision_flags.clear()
+        self.last_joint_decision_covered = None
 
     def predict_point_kbps(self) -> float:
         if not self._obs:
@@ -93,21 +97,25 @@ class ConformalThroughputTubeV2:
         return float(max(0.0, (hat - actual) / hat))
 
     @staticmethod
-    def _finite_sample_quantile(scores: deque[float], alpha: float) -> float:
-        """(1 - alpha) quantile with split-conformal rank ceil((n+1)(1-alpha))."""
+    def _finite_sample_quantile(scores: deque[float], miscoverage_alpha: float) -> float:
+        """Upper-tail score quantile at miscoverage rate ``miscoverage_alpha``."""
         if not scores:
             return 0.0
         arr = np.sort(np.asarray(scores, dtype=float))
         n = arr.size
-        rank = int(np.ceil((n + 1) * (1.0 - alpha)))
+        rank = int(np.ceil((n + 1) * (1.0 - miscoverage_alpha)))
         rank = min(max(rank, 1), n)
         return float(arr[rank - 1])
 
     def _min_calib(self, alpha_h: float) -> int:
         return max(int(np.ceil(1.0 / max(alpha_h, 1e-9)) - 1), 1)
 
+    def _quantile_alpha(self, step_idx: int) -> float:
+        """Miscoverage level for empirical score quantiles (fixed at nominal per-step α_h)."""
+        return float(self._base_alpha_per_step()[step_idx])
+
     def _lower_from_hat(self, hat: float, step_idx: int) -> float:
-        alpha_h = float(self._alpha_t[step_idx])
+        alpha_h = self._quantile_alpha(step_idx)
         n = len(self._scores[step_idx])
         if n < self._min_calib(alpha_h):
             return float(self.cfg.cold_start_cap * hat)
@@ -131,54 +139,69 @@ class ConformalThroughputTubeV2:
         lbs = np.array([self._lower_from_hat(hat, j) for j in range(h)], dtype=float)
         lbs = np.maximum(lbs, self.cfg.min_kbps)
         if decision_chunk is not None:
-            self._pred_by_decision[int(decision_chunk)] = hats.copy()
+            j = int(decision_chunk)
+            self._hats_by_decision[j] = hats.copy()
+            self._bounds_by_decision[j] = lbs.copy()
         return lbs
 
-    def _register_score(self, h_idx: int, hat: float, actual: float) -> None:
-        lb = self._lower_from_hat(hat, h_idx)
-        s = self._score(hat, actual)
-        self._scores[h_idx].append(s)
-        covered = actual >= lb - 1e-6
+    def _register_score(self, h_idx: int, hat: float, actual: float, lb_at_prediction: float) -> None:
+        covered = actual >= lb_at_prediction - 1e-6
         self._cov_n[h_idx] += 1
         if covered:
             self._cov_hits[h_idx] += 1
+        s = self._score(hat, actual)
+        self._scores[h_idx].append(s)
         if self.cfg.use_aci:
-            err = 0.0 if covered else 1.0
+            # Track adaptive α_h for diagnostics / future weighted scores; quantiles stay at nominal.
+            miss = 1.0 if not covered else 0.0
             base = float(self._base_alpha_per_step()[h_idx])
             self._alpha_t[h_idx] = float(
                 np.clip(
-                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (base - err),
-                    1e-4,
-                    0.99,
+                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (miss - base),
+                    base,
+                    min(0.99, max(base * 4.0, base + 0.05)),
                 )
             )
 
-    def observe(self, actual_kbps: float, *, realized_chunk: int | None = None) -> None:
-        actual = float(max(actual_kbps, 1e-6))
-        self._register_pending_scores(actual, realized_chunk)
-        self._obs.append(actual)
-
-    def _register_pending_scores(self, actual: float, realized_chunk: int | None) -> None:
+    def _register_marginal_scores(self, actual: float, realized_chunk: int | None) -> None:
         c = int(realized_chunk if realized_chunk is not None else self._n_realized)
         self._n_realized = max(self._n_realized, c + 1)
         h_max = len(self._scores)
-        joint_ok = True
-        any_scored = False
         for h in range(1, h_max + 1):
             j = c - h
-            hats = self._pred_by_decision.get(j)
-            if hats is None or h > len(hats):
+            bounds = self._bounds_by_decision.get(j)
+            hats = self._hats_by_decision.get(j)
+            if bounds is None or hats is None or h > len(bounds):
                 continue
             hat = float(hats[h - 1])
-            self._register_score(h - 1, hat, actual)
-            any_scored = True
-            lb = self._lower_from_hat(hat, h - 1)
-            if actual < lb - 1e-6:
-                joint_ok = False
-        if any_scored and h_max > 0:
-            self._joint_n += 1
-            if joint_ok:
-                self._joint_hits += 1
+            lb = float(bounds[h - 1])
+            self._register_score(h - 1, hat, actual, lb)
+
+    def _maybe_complete_joint_decision(self, c: int) -> None:
+        h_max = len(self._scores)
+        j = c - h_max
+        if j < 0 or j not in self._bounds_by_decision:
+            return
+        bounds = self._bounds_by_decision[j]
+        ok = True
+        for step in range(h_max):
+            chunk_idx = j + step + 1
+            act = self._actual_by_chunk.get(chunk_idx)
+            if act is None:
+                ok = False
+                break
+            if act < float(bounds[step]) - 1e-6:
+                ok = False
+        self._joint_decision_flags.append(ok)
+        self.last_joint_decision_covered = ok
+
+    def observe(self, actual_kbps: float, *, realized_chunk: int | None = None) -> None:
+        actual = float(max(actual_kbps, 1e-6))
+        c = int(realized_chunk if realized_chunk is not None else self._n_realized)
+        self._register_marginal_scores(actual, c)
+        self._actual_by_chunk[c] = actual
+        self._maybe_complete_joint_decision(c)
+        self._obs.append(actual)
 
     def empirical_coverage_per_step(self) -> np.ndarray:
         out = np.zeros(len(self._scores), dtype=float)
@@ -188,9 +211,9 @@ class ConformalThroughputTubeV2:
         return out
 
     def joint_coverage(self) -> float:
-        if self._joint_n <= 0:
+        if not self._joint_decision_flags:
             return float("nan")
-        return float(self._joint_hits / self._joint_n)
+        return float(np.mean(self._joint_decision_flags))
 
 
 __all__ = ["ConformalTubeV2Config", "ConformalThroughputTubeV2", "ScoreKind", "TubeMode"]

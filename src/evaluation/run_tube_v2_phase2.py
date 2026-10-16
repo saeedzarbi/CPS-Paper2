@@ -29,6 +29,7 @@ METRICS = (
     "smooth_penalty_mean",
     "episodic_qoe",
     "joint_coverage_ep",
+    "joint_tube_coverage_decision",
 )
 
 PHASE2_ARMS = (

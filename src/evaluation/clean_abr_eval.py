@@ -132,7 +132,9 @@ def run_episode(
             for i, v in enumerate(est.empirical_coverage_per_step()):
                 row[f"cov_h{i + 1}"] = float(v)
         if hasattr(est, "joint_coverage"):
-            row["joint_coverage_ep"] = float(est.joint_coverage())
+            jc = float(est.joint_coverage())
+            row["joint_coverage_ep"] = jc
+            row["joint_tube_coverage_decision"] = jc
     return row
 
 
