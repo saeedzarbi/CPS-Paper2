@@ -26,19 +26,20 @@ OUT_ROOT = ROOT / "results" / "tube_v3" / "final_test"
 def load_cfg(path: Path = CFG) -> dict:
     """Minimal parser for the frozen yaml (scalars, inline lists, '- item' list under arms)."""
     cfg: dict = {"arms": []}
-    in_arms = False
+    cur_list: str | None = None
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].rstrip()
         if not line.strip():
             continue
-        if line.startswith("  - ") and in_arms:
-            cfg["arms"].append(line[4:].strip())
+        if line.startswith("  - ") and cur_list is not None:
+            cfg[cur_list].append(line[4:].strip())
             continue
-        in_arms = False
+        cur_list = None
         k, v = line.split(":", 1)
         v = v.strip()
-        if k == "arms":
-            in_arms = True
+        if v == "":
+            cur_list = k
+            cfg.setdefault(k, [])
         elif v.startswith("["):
             cfg[k] = [x.strip() for x in v.strip("[]").split(",") if x.strip()]
         else:
@@ -49,8 +50,11 @@ def load_cfg(path: Path = CFG) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--trace-sets", nargs="+", default=None)
+    ap.add_argument("--config", default=str(CFG))
+    ap.add_argument("--out", default=str(OUT_ROOT))
     args = ap.parse_args()
-    cfg = load_cfg()
+    cfg = load_cfg(Path(args.config))
+    out_root = Path(args.out)
     assert cfg["split"] == "test"
     man = ROOT / cfg["manifest_file"]
     sha = hashlib.sha256(man.read_bytes()).hexdigest()
@@ -59,15 +63,15 @@ def main() -> int:
         return 2
     verify_or_exit()
     episodes = int(cfg["episodes_per_arm"])
-    OUT_ROOT.mkdir(parents=True, exist_ok=True)
-    (OUT_ROOT / "meta.json").write_text(json.dumps({**cfg, "started_at_utc": datetime.now(timezone.utc).isoformat(),
+    out_root.mkdir(parents=True, exist_ok=True)
+    (out_root / "meta.json").write_text(json.dumps({**cfg, "started_at_utc": datetime.now(timezone.utc).isoformat(),
                                                     "provenance_status": "VERIFIED"}, indent=2))
     for ts in args.trace_sets or cfg["trace_sets"]:
         trace_dir = resolve_trace_dir(ts, "test")
-        for job in cfg["arms"]:
+        for job in list(cfg.get(f"arms_{ts}", [])) + list(cfg["arms"]):  # per-family arms first
             arm, _, g = job.partition("@g")
             gamma = float(g) if g else None
-            path = OUT_ROOT / ts / (job.replace("@", "_at_") + ".csv")
+            path = out_root / ts / (job.replace("@", "_at_") + ".csv")
             if _job_complete(path, episodes):
                 continue
             done = _episodes_done(path) if path.is_file() else set()
@@ -86,7 +90,7 @@ def main() -> int:
                            provenance_status="VERIFIED")
                 _append_csv_row(path, row, "VERIFIED")
             print(f"{ts} {job} {time.time() - t0:.1f}s", flush=True)
-    (OUT_ROOT / "DONE").write_text(datetime.now(timezone.utc).isoformat())
+    (out_root / "DONE").write_text(datetime.now(timezone.utc).isoformat())
     print("DONE", flush=True)
     return 0
 
