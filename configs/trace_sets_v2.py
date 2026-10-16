@@ -12,8 +12,10 @@ from configs.paths import (
     STANDARDIZED_DIR,
     TEST_TRACES_5G_IRISH_MMSYS20_DIR,
     TEST_TRACES_5G_MARKOV_DIR,
+    TEST_TRACES_V18_DIR,
     TRAIN_TRACES_5G_IRISH_MMSYS20_DIR,
     TRAIN_TRACES_5G_MARKOV_DIR,
+    TRAIN_TRACES_V18_DIR,
 )
 
 SPLIT_ROOT = Path(__file__).resolve().parents[1] / "results" / "tube_v2" / "splits"
@@ -120,6 +122,10 @@ TRACE_SETS_V2: dict[str, dict[str, Path]] = {
         "train": TRAIN_TRACES_5G_IRISH_MMSYS20_DIR,
         "test": TEST_TRACES_5G_IRISH_MMSYS20_DIR,
     },
+    "bb": {
+        "train": TRAIN_TRACES_V18_DIR,
+        "test": TEST_TRACES_V18_DIR,
+    },
 }
 
 
@@ -175,7 +181,7 @@ def harsh_family_calib_test_dirs(
 
 
 def resolve_trace_dir(trace_set: str, split: str) -> Path:
-    if trace_set == "5g_harsh" and split == "test":
+    if trace_set == "5g_harsh" and split in ("test", "val"):
         return harsh_family_calib_test_dirs()[1]
     if split == "val":
         return val_trace_dir(trace_set)

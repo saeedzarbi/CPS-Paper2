@@ -45,7 +45,8 @@ def _write_dir(path: Path, n: int, rng: np.random.Generator, prefix: str) -> Non
             "throughput_kbps": _markov_trace(rng, TRACE_LEN),
             "trace_id": f"{prefix}_{i:03d}",
         }
-        (path / f"{prefix}_{i:03d}.json").write_text(json.dumps(payload), encoding="utf-8")
+        text = json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+        (path / f"{prefix}_{i:03d}.json").write_text(text, encoding="utf-8")
 
 
 def main() -> int:

@@ -156,6 +156,10 @@ def run_episode(
             mat = float(est.mean_alpha_t())
             if mat == mat:
                 row["tube_mean_alpha_t"] = mat
+        if hasattr(est, "aci_clip_fraction"):
+            cf = float(est.aci_clip_fraction())
+            if cf == cf:
+                row["tube_aci_clip_frac"] = cf
     return row
 
 

@@ -29,6 +29,7 @@ from src.evaluation.clean_abr_eval import build_env, run_episode, write_job_out
 from src.evaluation.eval_certified_shield_v18 import make_policy
 from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED
 from src.control.two_timescale_conformal import make_controlled_policy
+from src.evaluation.trace_provenance import verify_or_exit
 from src.training.fixed_quantile_mpc import load_or_fit_quantile, log_fitted_quantile, quantile_cache_path
 
 RESULTS_ROOT = ROOT / "results" / "tube_v2"
@@ -401,6 +402,7 @@ def main() -> int:
     resume = args.resume
     refit = args.refit_quantile
     if args.smoke or args.smoke_determinism_check:
+        verify_or_exit()
         phases = [3]
         if not args.trace_sets or args.trace_sets == "5g_harsh,bb":
             trace_sets = ["5g_harsh", "bb"]

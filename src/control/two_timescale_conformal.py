@@ -126,6 +126,7 @@ class ControlArmConfig:
     cold_start_cap: float = 0.80
     cold_start_chunks: int = 20
     upward_smooth_weight: float = 2.0
+    aci_gamma: float = 0.005
 
     def effective_safety_margin(self) -> float:
         """Buffer reserve for tube arms; H=1 static uses full margin (horizon sweep baseline)."""
@@ -461,6 +462,7 @@ class TubeV2ConformalPolicy:
             alpha=self.cfg.alpha,
             horizon=self.cfg.horizon,
             use_aci=use_aci,
+            aci_gamma=float(self.cfg.aci_gamma),
             cold_start_cap=self.cfg.cold_start_cap,
             conformal=ConformalConfig(alpha=self.cfg.alpha, window=200, k_predict=5),
         )
