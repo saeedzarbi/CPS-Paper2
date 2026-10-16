@@ -265,7 +265,7 @@ def build_report(
             lines.append("|-----|-----|-------|")
             for arm, qoe, reb in sorted(_pareto_rows(rows_by_arm, list(rows_by_arm.keys())), key=lambda x: -x[1]):
                 lines.append(f"| `{arm}` | {qoe:.2f} | {reb:.3f} |")
-            flags = _rho_monotone_flags({rs[0]["arm"]: rs for rs in rows_by_arm.values() if rs})
+            flags = _rho_monotone_flags(rows_by_arm)
             if flags:
                 lines.append("")
                 lines.append("**Rho monotonicity flags:** " + "; ".join(flags))
