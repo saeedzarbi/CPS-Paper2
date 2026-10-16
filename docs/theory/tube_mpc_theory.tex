@@ -1,0 +1,101 @@
+% Corrected theorem + lemma for the max-score tube (review of Gemini answer), CPS-Paper2 @ tube-v3-val f642568
+% Requires: amsmath, amssymb, amsthm
+\newtheorem{theorem}{Theorem}\newtheorem{lemma}{Lemma}\newtheorem{remark}{Remark}
+
+\paragraph{Setup.} Decision $j$ starts the download of chunk $j$. The point forecast
+$\hat y_j>0$ is a function of $y_{j-5:j-1}$. Step $h\in\{1,\dots,H\}$ of decision $j$ refers to chunk
+$j+h-1$ (aligned indexing; $h=1$ is the chunk being downloaded). $y_k$ denotes the effective throughput
+of chunk $k$ \emph{under the action actually executed} (in the simulator $y_k=\mathrm{bits}_k/\mathrm{dl}_k$,
+so $y_k$ depends on $a_k$). Per-step score
+$s_{j,h}=\max\{0,(\hat y_j-y_{j+h-1})/\hat y_j\}\in[0,1]$.
+Fix a scale vector $\sigma=(\sigma_1,\dots,\sigma_H)\in(0,\infty)^H$ and
+$S_j=\max_{h\le H} s_{j,h}/\sigma_h$. $S_j$ is observed only after chunk $j+H-1$ completes.
+
+\begin{theorem}[Simultaneous coverage of the max-score tube]\label{thm:maxscore}
+Let $\mathcal I=\{i_1,\dots,i_n\}$ index calibration decisions and $j$ a test decision. Assume
+\begin{enumerate}
+\item[(A1)] $\sigma$ is a deterministic function of data $\mathcal D_0$ disjoint from
+ $\{S_i\}_{i\in\mathcal I}\cup\{S_j\}$, and the \emph{same} $\sigma$ is used to compute every $S_i$ and $S_j$;
+\item[(A2)] every $S_i$, $i\in\mathcal I$, is completed (all $H$ chunks observed) before decision $j$;
+\item[(A3)] conditional on $\mathcal D_0$, $(S_{i_1},\dots,S_{i_n},S_j)$ is exchangeable.
+\end{enumerate}
+Let $\widehat Q=S_{(\lceil (n+1)(1-\alpha)\rceil)}$ (the $k$-th order statistic of the calibration scores;
+$\widehat Q=+\infty$ if $k>n$) and $L_{j,h}=\hat y_j\,(1-\widehat Q\sigma_h)$, with any clipping of
+$L_{j,h}$ to $\max(L_{j,h},0)$. Then
+\[ \Pr\big(\forall h\le H:\ y_{j+h-1}\ge L_{j,h}\big)\ \ge\ 1-\alpha . \]
+If in addition $S$ has a continuous distribution (no ties), the probability is at most
+$1-\alpha+1/(n+1)$. \emph{This upper bound does not apply to our score}: $S_j=0$ with positive
+probability (whenever $y_{j+h-1}\ge\hat y_j$ for all $h$), so ties at $0$ occur.
+\end{theorem}
+\begin{proof}
+Since $\hat y_j>0$ and $\widehat Q\sigma_h\ge0$, for each $h$:
+$s_{j,h}/\sigma_h\le\widehat Q\iff \hat y_j-y_{j+h-1}\le \hat y_j\widehat Q\sigma_h\iff y_{j+h-1}\ge L_{j,h}$
+(the $\max\{0,\cdot\}$ is harmless because the right side is $\ge0$; clipping $L$ at $0$ is harmless
+because $y>0$). Hence $\{S_j\le\widehat Q\}=\{\forall h: y_{j+h-1}\ge L_{j,h}\}$. Under (A1)--(A3) the
+standard split-conformal rank argument gives $\Pr(S_j\le\widehat Q)\ge\lceil (n+1)(1-\alpha)\rceil/(n+1)\ge1-\alpha$.
+\end{proof}
+
+\begin{remark}[What the current code does and does not satisfy]
+(i) \texttt{MaxScoreConformalTube} sets $\sigma_{j,h}$ to the rolling per-step quantile at decision $j$ and stores
+each $S_i$ with its own $\sigma_i$; thus (A1) fails (scores are computed with different, data-dependent scales).
+The \texttt{\_fs} arms (commit 0d9b582) implement the strict version: $\sigma$ from even-indexed calibration traces, $\widehat Q$ from odd-indexed ones (stride $H$), both frozen online.
+(ii) Clipping $L_{j,h}$ \emph{upward} to a floor $m>0$ (\texttt{min\_kbps}) preserves the bound only on
+$\{y_{j+h-1}\ge m\}$. (iii) The rolling window draws scores from the same trace; consecutive $S_i$ share up to
+$H-1$ chunks and throughput is autocorrelated, so (A3) does not hold within a session.
+\end{remark}
+
+\begin{remark}[Honest statement under dependence]
+Without (A3), the non-exchangeable bound of Barber et al.\ (2023, Ann.\ Statist.) gives, for the unweighted
+quantile, $\Pr(S_j\le\widehat Q)\ge 1-\alpha-\frac{1}{n+1}\sum_{i\in\mathcal I} d_{\mathrm{TV}}(Z,Z^{(i,j)})$,
+where $Z^{(i,j)}$ swaps $S_i$ and $S_j$. For stationary $\beta$-mixing scores, Chernozhukov, W\"uthrich \& Zhu
+(2018) and Oliveira et al.\ (2024, JMLR) give coverage $1-\alpha-\varepsilon_n$ with $\varepsilon_n\to0$ that depends on
+the mixing rate; we do not state an explicit rate. The defensible variant is cross-trace: freeze $\sigma$
+and $\widehat Q$ on calibration \emph{traces} disjoint from the test traces; if traces are i.i.d.\ sessions and
+one decision per calibration trace is used (or scores are block-subsampled with stride $\ge H$ plus a mixing
+assumption), Theorem~\ref{thm:maxscore} applies to a test decision drawn at a random position. Coverage of
+\emph{online} ACI variants is only the long-run realization-wise statement of Gibbs \& Cand\`es (2021),
+with an extra $O(H)$ term for the $(H-1)$-step delayed feedback.
+\end{remark}
+
+\paragraph{Planner (implemented, \texttt{\_safe} arms; commit 0d9b582).} With chunk duration $p$, cap $B_{\max}$,
+sizes $R_k(a)$ non-decreasing in $a$, and throughput vector $c$, let $d_h(\mathbf a,c)=R_{j+h-1}(a_h)/c_h$,
+$\mathrm{reb}_h=\max(0,d_h-B^{(h-1)})$, $B^{(h)}=\min\{\max(0,B^{(h-1)}-d_h)+p,\ B_{\max}\}$, $B^{(0)}=B_j$.
+A sequence $\mathbf a$ is \emph{tube-safe} if, on the lower-bound trajectory $c=L_j$,
+\begin{equation}\label{eq:safe}
+ d_h(\mathbf a,L_j)\ \le\ B^{(h)}_{-}(\mathbf a,L_j) - m,\qquad B^{(h)}_{-}:=B^{(h-1)}(\mathbf a,L_j),\qquad h=1,\dots,H,
+\end{equation}
+(the pre-refill check of \texttt{TubeV2MPCPolicy.plan\_action} with \texttt{safe\_prerefill=True}; $m$ = safety margin).
+The planner maximizes $\sum_h[\log u(a_h)-\lambda\,\mathrm{reb}_h(\mathbf a,L_j)-\mu|\Delta\log u|]$ over tube-safe
+sequences (subject to the $\pm1$ rung pruning) and executes $a_1$; if no sequence is tube-safe it executes the lowest
+rung $a=0$ (\emph{fallback}). The two-timescale controller then executes $a^{\mathrm{exec}}_1=\min(a^{\mathrm{tube}}_1,a^{\mathrm{cap}}_1)$.
+(The legacy arms check $B^{(h)}\ge m$ after refill, which always holds since $B^{(h)}\ge p>m$; they are kept unchanged.)
+
+\begin{lemma}[Horizon rebuffer safety of the \texttt{\_safe} planner]\label{lem:safety}
+Fix decision $j$ with a non-fallback plan $\mathbf a$ that is tube-safe, and let $\tilde{\mathbf a}=(a^{\mathrm{exec}}_1,a_2,\dots,a_H)$.
+\begin{enumerate}
+\item (Cap preserves safety) $\tilde{\mathbf a}$ is tube-safe.
+\item (Coverage $\Rightarrow$ no rebuffer) If $y_{j+h-1}\ge L_{j,h}$ for all $h\le H$, where $y$ is the realized
+ throughput of executing $\tilde{\mathbf a}$ open-loop, then $\mathrm{reb}_h(\tilde{\mathbf a},y)=0$ and
+ $B^{(h-1)}(\tilde{\mathbf a},y)-d_h(\tilde{\mathbf a},y)\ge m$ for every $h\le H$.
+\item (Probability) Under the conditions of Theorem~\ref{thm:maxscore} (frozen $\sigma$, \texttt{\_fs} arms),
+ $\Pr\big(\text{non-fallback}\ \wedge\ \exists h\le H:\mathrm{reb}_h(\tilde{\mathbf a},y)>0\big)\le\alpha$.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+$\Phi(B,a,c)=\min\{\max(0,B-R(a)/c)+p,B_{\max}\}$ is non-decreasing in $B$ and $c$ and non-increasing in $a$.
+(1) $d_1(\tilde{\mathbf a},L)\le d_1(\mathbf a,L)\le B_j-m$, and $B^{(1)}(\tilde{\mathbf a},L)\ge B^{(1)}(\mathbf a,L)$;
+by induction $B^{(h-1)}(\tilde{\mathbf a},L)\ge B^{(h-1)}(\mathbf a,L)$ while $d_h$ is unchanged for $h\ge2$, so \eqref{eq:safe} holds.
+(2) By induction, $B^{(h-1)}(\tilde{\mathbf a},y)\ge B^{(h-1)}(\tilde{\mathbf a},L)$ and $d_h(\tilde{\mathbf a},y)\le d_h(\tilde{\mathbf a},L)$,
+hence $B^{(h-1)}(y)-d_h(y)\ge B^{(h-1)}(L)-d_h(L)\ge m>0$.
+(3) The event in (3) implies $\exists h: y_{j+h-1}<L_{j,h}$, i.e.\ $S_j>\widehat Q$, of probability $\le\alpha$.
+\end{proof}
+
+\begin{remark}[Scope]
+(a) Closed loop: only $a^{\mathrm{exec}}_1$ is played and $y_k$ depends on the executed rung, so (2) is a statement about the
+committed plan; for the \emph{executed} chunk it gives $\Pr(\mathrm{reb}_j>0,\ \text{non-fallback})\le\Pr(y_j<L_{j,1})$.
+(b) Episode level: $\mathbb E[\#\{j:\mathrm{reb}_j>0\}]\le\sum_j\Pr(y_j<L_{j,1})+\mathbb E[\#\text{fallback steps with }\mathrm{reb}>0]$;
+the first chunk ($B_0=0$) is always a fallback (startup delay), so zero rebuffer per episode is not claimed.
+(c) Early abort is disabled in all evaluated arms (\texttt{configure\_env\_for\_arm}), so $d=R(a)/y$ holds per chunk.
+(d) $\sigma$ and $\widehat Q$ are fitted on calibration \emph{traces} (raw trace samples), while coverage is evaluated on
+chunk-level effective throughput; the theorem's exchangeability is therefore an assumption, verified empirically.
+\end{remark}
