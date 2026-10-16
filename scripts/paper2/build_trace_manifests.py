@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -26,6 +31,7 @@ from configs.trace_sets_v2 import (
     HARSH_VAL_FRACTION,
     VAL_FRACTION,
     VAL_SEED,
+    eval_test_dir,
     harsh_family_three_way_dirs,
     train_minus_val_dir,
     val_trace_dir,
@@ -121,7 +127,28 @@ def _collect_directories() -> list[tuple[str, Path, dict | None]]:
         )
     except FileNotFoundError:
         pass
+    for key in ("5g_markov", "bb", "5g_irish"):
+        try:
+            test_eval = eval_test_dir(key)
+            dirs.append((f"split_{key}_test_eval", test_eval, {"basename_disjoint_from_train": True}))
+        except (FileNotFoundError, KeyError):
+            pass
     return dirs
+
+
+def build_environment_metadata() -> dict:
+    try:
+        git_commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        git_commit = ""
+    return {
+        "built_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "python": platform.python_version(),
+        "numpy": np.__version__,
+        "git_commit": git_commit,
+    }
 
 
 def build_manifest() -> dict:
@@ -130,6 +157,7 @@ def build_manifest() -> dict:
         entries.append(manifest_entries_for_dir(path, logical_name=logical, generator=gen))
     return {
         "version": 2,
+        "build": build_environment_metadata(),
         "directories": entries,
     }
 

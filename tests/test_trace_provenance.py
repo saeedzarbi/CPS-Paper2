@@ -21,6 +21,10 @@ def test_canonical_manifest_loads() -> None:
     m = load_canonical_manifest()
     assert m.get("version") == 2
     assert "standardized_root" not in m
+    if "build" in m:
+        assert "python" in m["build"]
+        assert "numpy" in m["build"]
+        assert "git_commit" in m["build"]
     assert len(m.get("directories", [])) >= 1
     for entry in m["directories"]:
         assert "relpath" in entry

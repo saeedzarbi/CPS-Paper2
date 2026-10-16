@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 import time
-from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -15,20 +16,32 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from configs.trace_sets_v2 import resolve_trace_dir
-from src.control.two_timescale_conformal import RHO_SWEEP_ARMS, ControlArmConfig, parse_tube_v2_arm
-from src.evaluation.clean_abr_eval import run_arm
+from configs.trace_sets_v2 import resolve_trace_dir, split_inventory
+from src.control.two_timescale_conformal import (
+    RHO_SWEEP_ARMS,
+    ControlArmConfig,
+    make_controlled_policy,
+    parse_tube_v2_arm,
+)
+from src.evaluation.clean_abr_eval import build_env, run_episode
 from src.evaluation.cluster_stats import cluster_bootstrap_mean_ci
+from src.evaluation.eval_certified_shield_v18 import make_policy
+from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED
 from src.evaluation.paired_bootstrap import (
     align_paired_metric,
     format_ci,
     paired_bootstrap_mean_ci,
     win_tie_loss,
 )
-from src.evaluation.trace_provenance import verify_or_exit
+from src.evaluation.trace_provenance import load_canonical_manifest, verify_or_exit
 
 OUT_ROOT = ROOT / "results" / "tube_v2" / "phase2"
 REPORT_PATH = ROOT / "docs" / "reports" / "tube_v2_phase2_pilot.md"
+DONE_PATH = OUT_ROOT / "DONE.json"
+RUN_LOG_DEFAULT = OUT_ROOT / "run.log"
+
+PROVENANCE_VERIFIED = "VERIFIED"
+PROVENANCE_UNVERIFIED = "UNVERIFIED"
 
 GAMMAS = (0.002, 0.005, 0.01, 0.02)
 TUBE_STATIC_ARMS = (
@@ -43,8 +56,6 @@ TUBE_ACI_ARMS = (
 )
 BASELINE_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_native", *RHO_SWEEP_ARMS)
 
-QOE_METRICS = ("episodic_qoe", "rebuffer_total", "mean_vmaf", "joint_tube_coverage_decision")
-COVERAGE_COLS = tuple(f"cov_h{i}" for i in range(1, 6)) + ("joint_tube_coverage_decision",)
 REF_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_native")
 
 
@@ -52,13 +63,6 @@ def _job_key(arm: str, gamma: float | None) -> str:
     if gamma is None:
         return arm
     return f"{arm}@g{gamma:.3f}"
-
-
-def _parse_job_key(key: str) -> tuple[str, float | None]:
-    if "@g" not in key:
-        return key, None
-    arm, g = key.split("@g", 1)
-    return arm, float(g)
 
 
 def phase2_arm_list() -> list[tuple[str, float | None]]:
@@ -76,38 +80,96 @@ def _csv_path(trace_set: str, host: str, job_key: str) -> Path:
     return OUT_ROOT / trace_set / host / f"{safe}.csv"
 
 
+def _provenance_comment(status: str) -> str:
+    return f"# provenance_status={status}"
+
+
+def _read_csv_rows(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    while lines and lines[0].startswith("#"):
+        lines = lines[1:]
+    if not lines:
+        return []
+    return list(csv.DictReader(lines))
+
+
+def _episodes_done(path: Path) -> set[int]:
+    return {int(r["episode"]) for r in _read_csv_rows(path)}
+
+
+def _job_complete(path: Path, episodes: int) -> bool:
+    done = _episodes_done(path)
+    return len(done) >= episodes and all(ep in done for ep in range(episodes))
+
+
+def _append_csv_row(path: Path, row: dict, provenance: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(row.keys())
+    if not path.is_file() or path.stat().st_size == 0:
+        with path.open("w", newline="", encoding="utf-8") as f:
+            f.write(_provenance_comment(provenance) + "\n")
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            w.writerow(row)
+            f.flush()
+            os.fsync(f.fileno())
+        return
+    with path.open("a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writerow(row)
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def run_job(
     trace_set: str,
     host: str,
     episodes: int,
-    workers: int,
     jobs: list[tuple[str, float | None]],
+    *,
+    resume: bool,
+    provenance: str,
 ) -> dict[str, list[dict]]:
     trace_dir = resolve_trace_dir(trace_set, "val")
     all_rows: dict[str, list[dict]] = {}
     for arm, gamma in jobs:
         cfg = ControlArmConfig(aci_gamma=float(gamma if gamma is not None else 0.005))
         key = _job_key(arm, gamma)
-        rows = run_arm(
-            host,
-            trace_dir,
-            arm,  # type: ignore[arg-type]
-            episodes,
-            cfg,
-            workers=workers,
-            trace_key=trace_set,
-        )
-        for r in rows:
-            r["arm"] = arm
-            r["aci_gamma"] = "" if gamma is None else f"{gamma:.4f}"
-            r["job_key"] = key
-        all_rows[key] = rows
         path = _csv_path(trace_set, host, key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-            w.writeheader()
-            w.writerows(rows)
+        if resume and _job_complete(path, episodes):
+            all_rows[key] = _read_csv_rows(path)
+            continue
+        done = _episodes_done(path) if resume and path.is_file() else set()
+        if resume and path.is_file() and not done:
+            pass
+        elif path.is_file() and not resume:
+            path.unlink()
+
+        env = build_env(trace_dir, arm)  # type: ignore[arg-type]
+        base = make_policy(host, env, None, False)
+        policy = make_controlled_policy(env, arm, base, cfg, trace_set_key=trace_set)  # type: ignore[arg-type]
+        rows: list[dict] = _read_csv_rows(path) if resume else []
+        for ep in range(episodes):
+            if ep in done:
+                continue
+            if hasattr(policy, "on_episode_start"):
+                policy.on_episode_start()
+            row = run_episode(
+                env,
+                policy,
+                ep,
+                master_seed=DEFAULT_MASTER_SEED,
+                trace_key=trace_set,
+            )
+            row["arm"] = arm
+            row["aci_gamma"] = "" if gamma is None else f"{gamma:.4f}"
+            row["job_key"] = key
+            row["provenance_status"] = provenance
+            _append_csv_row(path, row, provenance)
+            rows.append(row)
+        all_rows[key] = rows if rows else _read_csv_rows(path)
     return all_rows
 
 
@@ -121,15 +183,16 @@ def _by_trace(rows: list[dict], key: str) -> dict[str, list[float]]:
     return out
 
 
-def _pareto_rows(rows_by_arm: dict[str, list[dict]], arms: list[str]) -> list[tuple[str, float, float]]:
+def _pareto_rows(rows_by_arm: dict[str, list[dict]], keys: list[str]) -> list[tuple[str, float, float]]:
     out: list[tuple[str, float, float]] = []
-    for arm in arms:
-        if arm not in rows_by_arm:
+    for key in keys:
+        if key not in rows_by_arm or not rows_by_arm[key]:
             continue
-        rs = rows_by_arm[arm]
+        rs = rows_by_arm[key]
+        label = rs[0].get("job_key", key)
         qoe = float(np.mean([float(r["episodic_qoe"]) for r in rs]))
         reb = float(np.mean([float(r["rebuffer_total"]) for r in rs]))
-        out.append((arm, qoe, reb))
+        out.append((str(label), qoe, reb))
     return out
 
 
@@ -153,20 +216,55 @@ def _rho_monotone_flags(rows_by_arm: dict[str, list[dict]]) -> list[str]:
     return flags
 
 
+def _split_inventory_lines(trace_sets: list[str]) -> list[str]:
+    lines = [
+        "### Trace split inventory (files per split)",
+        "",
+        "| trace_set | n_calib | n_val | n_test | n_test_pool | n_removed (basename filter) |",
+        "|-----------|---------|-------|--------|-------------|------------------------------|",
+    ]
+    for ts in trace_sets:
+        try:
+            inv = split_inventory(ts)
+        except (FileNotFoundError, KeyError) as e:
+            lines.append(f"| `{ts}` | — | — | — | — | skip ({e}) |")
+            continue
+        lines.append(
+            f"| `{ts}` | {inv.n_calib} | {inv.n_val} | {inv.n_test} | "
+            f"{inv.n_test_pool} | {inv.n_test_removed_by_basename_filter} |"
+        )
+    lines.append("")
+    return lines
+
+
 def build_report(
     trace_sets: list[str],
     hosts: list[str],
     episodes: int,
     pilot: bool,
     wall_by_job: dict[str, float],
+    *,
+    provenance: str,
+    manifest_build: dict | None,
 ) -> str:
     lines = [
         "# Tube-v2 Phase 2 — ACI ablation (validation)",
+        "",
+        f"**Provenance: {provenance}**",
         "",
         f"Mode: **{'pilot' if pilot else 'full'}**. Episodes/arm: {episodes}.",
         "CIs: trace-cluster bootstrap (QoE aggregates) and **paired episode bootstrap** vs references.",
         "",
     ]
+    if manifest_build:
+        lines.append(
+            f"Canonical manifest build: python {manifest_build.get('python', '?')}, "
+            f"numpy {manifest_build.get('numpy', '?')}, "
+            f"git `{manifest_build.get('git_commit', '?')[:12]}` "
+            f"({manifest_build.get('built_at_utc', '')})."
+        )
+        lines.append("")
+    lines.extend(_split_inventory_lines(trace_sets))
     wall_path = OUT_ROOT / "pilot_wall.json"
     if not wall_by_job and wall_path.is_file():
         wall_by_job = json.loads(wall_path.read_text(encoding="utf-8"))
@@ -179,7 +277,7 @@ def build_report(
         eta_h = per_set * scale * full_sets / 3600
         lines.extend(
             [
-                f"Pilot wall time (partial): {total:.1f}s. Rough full-run ETA (100 ep, all jobs): **{eta_h:.1f} h** on this host.",
+                f"Pilot wall time (this run): {total:.1f}s. Rough full-run ETA (100 ep, all jobs): **{eta_h:.1f} h** on this host.",
                 "",
             ]
         )
@@ -193,13 +291,11 @@ def build_report(
                 continue
             rows_by_arm: dict[str, list[dict]] = {}
             for path in sorted(job_dir.glob("*.csv")):
-                with path.open(encoding="utf-8") as f:
-                    rows = list(csv.DictReader(f))
+                rows = _read_csv_rows(path)
                 if not rows:
                     continue
                 key = rows[0].get("job_key", path.stem)
                 rows_by_arm[key] = rows
-            ref = {k: rows_by_arm[k] for k in rows_by_arm if rows_by_arm[k][0].get("arm") in REF_ARMS}
             lines.append("### Means (cluster bootstrap 95% CI)")
             lines.append("")
             lines.append("| job | QoE | rebuf | VMAF | joint_cov | mean_α_t | clip% |")
@@ -236,7 +332,7 @@ def build_report(
                     cells = []
                     wtl = ""
                     n_pairs = 0
-                    for m, hib in (
+                    for m, _hib in (
                         ("episodic_qoe", True),
                         ("rebuffer_total", False),
                         ("mean_vmaf", True),
@@ -273,6 +369,29 @@ def build_report(
     return "\n".join(lines) + "\n"
 
 
+def _write_done_marker(
+    *,
+    provenance: str,
+    episodes: int,
+    pilot: bool,
+    trace_sets: list[str],
+    hosts: list[str],
+    wall_by_job: dict[str, float],
+) -> None:
+    payload = {
+        "finished_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "provenance_status": provenance,
+        "pilot": pilot,
+        "episodes_per_arm": episodes,
+        "trace_sets": trace_sets,
+        "hosts": hosts,
+        "jobs_per_trace_set": len(phase2_arm_list()),
+        "wall_seconds_by_key": wall_by_job,
+        "report_path": str(REPORT_PATH.relative_to(ROOT)),
+    }
+    DONE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -283,36 +402,86 @@ def main() -> int:
     ap.add_argument("--hosts", nargs="+", default=["bba"])
     ap.add_argument("--episodes", type=int, default=100)
     ap.add_argument("--pilot", action="store_true", help="Short run for runtime ETA (5 episodes)")
-    ap.add_argument("--workers", type=int, default=1)
+    ap.add_argument("--workers", type=int, default=1, help="Reserved; Phase 2 runs sequentially per job")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--skip-verify", action="store_true")
+    ap.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
     args = ap.parse_args()
 
     episodes = 5 if args.pilot else args.episodes
+    provenance = PROVENANCE_UNVERIFIED if args.skip_verify else PROVENANCE_VERIFIED
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
 
+    manifest_build: dict | None = None
+    try:
+        manifest_build = load_canonical_manifest().get("build")
+    except FileNotFoundError:
+        pass
+
+    if args.skip_verify and not args.report_only:
+        print(
+            f"WARNING: --skip-verify → all outputs tagged {PROVENANCE_UNVERIFIED}; not for reported runs.",
+            file=sys.stderr,
+        )
     if not args.skip_verify and not args.report_only:
         verify_or_exit()
 
     jobs = phase2_arm_list()
     wall_by_job: dict[str, float] = {}
     if not args.report_only:
-        meta = {"episodes": episodes, "pilot": args.pilot, "gammas": list(GAMMAS)}
+        if DONE_PATH.is_file() and not args.resume:
+            DONE_PATH.unlink()
+        meta = {
+            "episodes": episodes,
+            "pilot": args.pilot,
+            "gammas": list(GAMMAS),
+            "provenance_status": provenance,
+            "manifest_build": manifest_build,
+            "started_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        }
         (OUT_ROOT / "phase2_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
         for trace_set in args.trace_sets:
             for host in args.hosts:
                 try:
                     t0 = time.time()
-                    run_job(trace_set, host, episodes, args.workers, jobs)
+                    run_job(
+                        trace_set,
+                        host,
+                        episodes,
+                        jobs,
+                        resume=args.resume,
+                        provenance=provenance,
+                    )
                     wall_by_job[f"{trace_set}/{host}"] = time.time() - t0
                 except (FileNotFoundError, KeyError) as e:
                     print("SKIP", trace_set, e)
         (OUT_ROOT / "pilot_wall.json").write_text(json.dumps(wall_by_job, indent=2), encoding="utf-8")
+        _write_done_marker(
+            provenance=provenance,
+            episodes=episodes,
+            pilot=args.pilot,
+            trace_sets=args.trace_sets,
+            hosts=args.hosts,
+            wall_by_job=wall_by_job,
+        )
 
-    report = build_report(args.trace_sets, args.hosts, episodes, args.pilot, wall_by_job)
+    if not wall_by_job and (OUT_ROOT / "pilot_wall.json").is_file():
+        wall_by_job = json.loads((OUT_ROOT / "pilot_wall.json").read_text(encoding="utf-8"))
+
+    report = build_report(
+        args.trace_sets,
+        args.hosts,
+        episodes,
+        args.pilot,
+        wall_by_job,
+        provenance=provenance,
+        manifest_build=manifest_build,
+    )
     REPORT_PATH.write_text(report, encoding="utf-8")
     print(f"Wrote {REPORT_PATH}")
+    if not args.report_only:
+        print(f"Wrote {DONE_PATH}")
     return 0
 
 

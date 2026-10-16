@@ -108,6 +108,66 @@ def train_minus_val_dir(trace_set: str) -> Path:
     return out
 
 
+def count_trace_json_files(directory: Path) -> int:
+    if not directory.is_dir():
+        return 0
+    return sum(
+        1 for p in directory.glob("*.json") if not p.name.startswith("trace_stats")
+    )
+
+
+@dataclass(frozen=True)
+class SplitInventory:
+    trace_set: str
+    n_calib: int
+    n_val: int
+    n_test: int
+    n_test_pool: int
+    n_test_removed_by_basename_filter: int
+
+
+def eval_test_filter_counts(trace_set: str) -> tuple[int, int, int]:
+    """(files in test pool, files used after basename filter, files removed)."""
+    if trace_set not in TRACE_SETS_V2:
+        raise KeyError(trace_set)
+    train = TRACE_SETS_V2[trace_set]["train"]
+    test_src = TRACE_SETS_V2[trace_set]["test"]
+    train_names = {p.name for p in train.glob("*.json")}
+    test_names = {
+        p.name
+        for p in test_src.glob("*.json")
+        if not p.name.startswith("trace_stats")
+    }
+    exclusive = test_names - train_names
+    n_pool = len(test_names)
+    n_used = len(exclusive)
+    return n_pool, n_used, n_pool - n_used
+
+
+def split_inventory(trace_set: str) -> SplitInventory:
+    if trace_set == "5g_harsh":
+        calib, val, test = harsh_family_three_way_dirs()
+        n_test = count_trace_json_files(test)
+        return SplitInventory(
+            trace_set=trace_set,
+            n_calib=count_trace_json_files(calib),
+            n_val=count_trace_json_files(val),
+            n_test=n_test,
+            n_test_pool=n_test,
+            n_test_removed_by_basename_filter=0,
+        )
+    calib, val, _test = split_dirs_for_trace_set(trace_set)
+    n_pool, n_used, n_removed = eval_test_filter_counts(trace_set)
+    return SplitInventory(
+        trace_set=trace_set,
+        n_calib=count_trace_json_files(calib),
+        n_val=count_trace_json_files(val),
+        n_test=n_used,
+        n_test_pool=n_pool,
+        n_test_removed_by_basename_filter=n_removed,
+    )
+
+
 def assert_disjoint_dirs(a: Path, b: Path) -> None:
     a_names = {p.name for p in a.glob("*.json")}
     b_names = {p.name for p in b.glob("*.json")}
