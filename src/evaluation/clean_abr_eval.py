@@ -18,6 +18,7 @@ from configs.videos import CPS_EPISODES, EVAL_VIDEOS, MAX_CHUNKS
 from src.control.two_timescale_conformal import ControlArmConfig, EvalArm, configure_env_for_arm, make_controlled_policy
 from src.environment.clean_abr_env import CleanABREnv
 from src.evaluation.eval_certified_shield_v18 import _bootstrap_ci, _wilcoxon, make_policy
+from src.evaluation.eval_seeds import DEFAULT_MASTER_SEED, apply_episode_seeds
 
 P = get_paths()
 QOE_REBUF_W = 4.3
@@ -81,14 +82,23 @@ def run_episode(
     ep: int,
     *,
     time_decisions: bool = False,
+    master_seed: int | None = DEFAULT_MASTER_SEED,
+    trace_key: str = "",
 ) -> dict:
-    random.seed(1000 + ep)
-    obs, _ = env.reset(seed=1000 + ep)
+    if master_seed is not None and trace_key:
+        seed = apply_episode_seeds(master_seed, trace_key, ep)
+    else:
+        seed = 1000 + ep
+        random.seed(seed)
+        np.random.seed(seed % (2**32 - 1))
+    obs, _ = env.reset(seed=seed)
     if hasattr(policy, "on_episode_start"):
         policy.on_episode_start()
     chunk_rebufs: list[float] = []
     log_utils: list[float] = []
     smooths: list[float] = []
+    vmafs: list[float] = []
+    bitrates: list[float] = []
     decision_us: list[float] = []
 
     done = False
@@ -102,6 +112,8 @@ def run_episode(
         chunk_rebufs.append(float(info.get("rebuffer", 0.0)))
         log_utils.append(float(info.get("log_utility", 0.0)))
         smooths.append(float(info.get("smooth_penalty", 0.0)))
+        vmafs.append(float(info.get("vmaf", 0.0)))
+        bitrates.append(float(info.get("bitrate", 0.0)))
 
     reb_total = float(sum(chunk_rebufs))
     reb_p95 = float(np.percentile(chunk_rebufs, 95)) if chunk_rebufs else 0.0
@@ -121,7 +133,10 @@ def run_episode(
         "zero_stall_episode": zero_stall,
         "log_utility_mean": float(np.mean(log_utils)) if log_utils else 0.0,
         "smooth_penalty_mean": float(np.mean(smooths)) if smooths else 0.0,
+        "mean_vmaf": float(np.mean(vmafs)) if vmafs else 0.0,
+        "mean_bitrate_kbps": float(np.mean(bitrates)) if bitrates else 0.0,
         "episodic_qoe": episodic_qoe,
+        "episode_seed": int(seed),
     }
     if time_decisions and decision_us:
         row["decision_latency_us_mean"] = float(np.mean(decision_us))

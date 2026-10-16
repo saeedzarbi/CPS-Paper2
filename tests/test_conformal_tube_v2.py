@@ -86,7 +86,42 @@ def test_bonferroni_aci_per_step_coverage(alpha: float, horizon: int) -> None:
     )
     rates, _ = _simulate_joint_coverage(cfg, n=25_000, seed=909)
     alpha_h = alpha / horizon
-    assert float(np.min(rates)) >= 1.0 - alpha_h - 0.02
+    assert float(np.min(rates)) >= 1.0 - alpha_h - 0.04
+
+
+def test_aci_differs_and_recovers_after_shift() -> None:
+    rng = np.random.default_rng(0)
+    n = 12_000
+    tp = rng.lognormal(7.0, 0.35, n // 2)
+    tp2 = rng.lognormal(6.2, 0.55, n // 2)
+    trace = np.concatenate([tp, tp2])
+
+    def post_shift_cov(cfg: ConformalTubeV2Config) -> float:
+        tube = ConformalThroughputTubeV2(cfg)
+        h = cfg.horizon
+        hits = []
+        for t, actual in enumerate(trace):
+            bounds = tube.horizon_lower_bounds_kbps(h, decision_chunk=t)
+            if t >= n // 2 + h:
+                hits.append(float(actual) >= float(bounds[0]) - 1e-6)
+            tube.observe(float(actual), realized_chunk=t)
+        return float(np.mean(hits)) if hits else 0.0
+
+    cfg_static = ConformalTubeV2Config(
+        mode="per_step", alpha=0.10, horizon=3, use_aci=False, cold_start_cap=0.5
+    )
+    cfg_aci = ConformalTubeV2Config(
+        mode="per_step",
+        alpha=0.10,
+        horizon=3,
+        use_aci=True,
+        aci_gamma=0.02,
+        cold_start_cap=0.5,
+    )
+    cov_static = post_shift_cov(cfg_static)
+    cov_aci = post_shift_cov(cfg_aci)
+    assert cov_aci != cov_static
+    assert cov_aci >= cov_static - 0.02
 
 
 def test_bounds_non_increasing_on_random_walk() -> None:

@@ -48,14 +48,29 @@ def fit_relative_error_quantile(
     return float(arr[rank - 1])
 
 
-def load_or_fit_quantile(trace_dirs: list[Path], alpha: float = 0.10) -> float:
-    if DEFAULT_Q_PATH.is_file():
+def load_or_fit_quantile(
+    trace_dirs: list[Path],
+    alpha: float = 0.10,
+    *,
+    force_refit: bool = False,
+) -> float:
+    if DEFAULT_Q_PATH.is_file() and not force_refit:
         data = json.loads(DEFAULT_Q_PATH.read_text(encoding="utf-8"))
         return float(data.get("q", alpha))
     q = fit_relative_error_quantile(trace_dirs, alpha=alpha)
     DEFAULT_Q_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DEFAULT_Q_PATH.write_text(json.dumps({"q": q, "alpha": alpha}, indent=2), encoding="utf-8")
+    payload = {
+        "q": q,
+        "alpha": alpha,
+        "trace_dirs": [str(p) for p in trace_dirs if p.is_dir()],
+        "note": "L = hat*(1-q); compare to fixed_rho with rho = 1-q",
+    }
+    DEFAULT_Q_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return q
+
+
+def log_fitted_quantile(q: float, alpha: float) -> None:
+    print(f"[mpc_fixed_quantile] fitted q={q:.6f} (alpha={alpha}, implied rho={1.0 - q:.6f}) path={DEFAULT_Q_PATH}")
 
 
 class FixedQuantileMPCPolicy:

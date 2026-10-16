@@ -1,26 +1,36 @@
-# Tube-v2 smoke (Phase 3 baselines)
+# Tube-v2 smoke (Phase 3 baselines + tube_v2 ACI)
 
-Episodes per arm: 5
+Episodes per arm: 12. Seeds: `eval_seeds.episode_seed(master=42, trace, ep)`.
+Fitted `mpc_fixed_quantile` q=0.737530858337817 (alpha=0.1).
 
-| trace | host | arm | QoE mean | rebuffer | joint_cov |
-|-------|------|-----|----------|----------|-----------|
-| 5g_markov | bba | `raw` | 31.77 | 13.424 | — |
-| 5g_markov | bba | `static_conformal` | 58.79 | 5.374 | — |
-| 5g_markov | bba | `tube_conformal` | 61.06 | 5.194 | — |
-| 5g_markov | bba | `robust_mpc_logu` | 85.44 | 1.444 | — |
-| 5g_markov | bba | `mpc_fixed_quantile` | 66.37 | 0.002 | — |
-| 5g_markov | bba | `mpc_fixed_rho_0.6` | 81.80 | 3.484 | — |
-| 5g_markov | bba | `mpc_fixed_rho_0.7` | 80.48 | 4.614 | — |
-| 5g_markov | bba | `mpc_fixed_rho_0.8` | 61.59 | 9.344 | — |
-| 5g_markov | bba | `mpc_fixed_rho_0.9` | 51.70 | 12.727 | — |
-| 5g_markov | bba | `tube_v2_step_static_nocap` | 67.75 | 1.632 | 0.667 |
-| bb | bba | `raw` | -271.90 | 78.648 | — |
-| bb | bba | `static_conformal` | 20.21 | 1.640 | — |
-| bb | bba | `tube_conformal` | 33.99 | 1.420 | — |
-| bb | bba | `robust_mpc_logu` | 35.15 | 1.240 | — |
-| bb | bba | `mpc_fixed_quantile` | 1.00 | 1.240 | — |
-| bb | bba | `mpc_fixed_rho_0.6` | 26.59 | 1.240 | — |
-| bb | bba | `mpc_fixed_rho_0.7` | 22.48 | 3.850 | — |
-| bb | bba | `mpc_fixed_rho_0.8` | 31.87 | 2.320 | — |
-| bb | bba | `mpc_fixed_rho_0.9` | 38.26 | 1.550 | — |
-| bb | bba | `tube_v2_step_static_nocap` | 21.52 | 4.470 | 0.695 |
+
+| trace | arm | QoE | rebuf | smooth | logU | VMAF | joint_cov | cov_h1 |
+|-------|-----|-----|-------|--------|------|------|-----------|--------|
+| 5g_harsh | `raw` | 56.130 | 9.642 | 0.401 | 2.434 | 79.678 | — | — |
+| 5g_harsh | `static_conformal` | 71.938 | 4.717 | 0.439 | 2.361 | 79.224 | — | — |
+| 5g_harsh | `tube_conformal` | 76.559 | 2.646 | 0.257 | 2.089 | 76.462 | — | — |
+| 5g_harsh | `robust_mpc_logu` | 82.899 | 2.328 | 0.220 | 2.156 | 77.163 | — | — |
+| 5g_harsh | `mpc_fixed_quantile` | 71.688 | 0.000 | 0.155 | 1.648 | 73.197 | — | — |
+| 5g_harsh | `mpc_fixed_rho_0.6` | 89.658 | 3.320 | 0.180 | 2.345 | 79.124 | — | — |
+| 5g_harsh | `mpc_fixed_rho_0.7` | 80.355 | 6.566 | 0.183 | 2.445 | 80.038 | — | — |
+| 5g_harsh | `mpc_fixed_rho_0.8` | 71.994 | 9.292 | 0.173 | 2.505 | 80.760 | — | — |
+| 5g_harsh | `mpc_fixed_rho_0.9` | 61.589 | 12.662 | 0.167 | 2.584 | 81.229 | — | — |
+| 5g_harsh | `tube_v2_step_static_nocap` | 77.156 | 1.708 | 0.170 | 1.931 | 75.604 | 0.655 | 0.864 |
+| 5g_harsh | `tube_v2_bonf_static` | 87.474 | 1.654 | 0.274 | 2.245 | 78.243 | 0.343 | 0.687 |
+| 5g_harsh | `tube_v2_bonf_aci` | 87.474 | 1.654 | 0.274 | 2.245 | 78.243 | 0.343 | 0.687 |
+| 5g_harsh | `tube_v2_step_static` | 73.947 | 0.663 | 0.219 | 1.819 | 74.439 | 0.657 | 0.862 |
+| 5g_harsh | `tube_v2_step_aci` | 72.197 | 0.667 | 0.221 | 1.785 | 73.688 | 0.629 | 0.855 |
+| bb | `raw` | -665.537 | 170.180 | 0.122 | 1.502 | 79.659 | — | — |
+| bb | `static_conformal` | -22.003 | 11.688 | 0.504 | 1.093 | 75.123 | — | — |
+| bb | `tube_conformal` | -10.872 | 11.763 | 0.117 | 0.945 | 74.759 | — | — |
+| bb | `robust_mpc_logu` | -10.269 | 11.501 | 0.141 | 0.958 | 74.480 | — | — |
+| bb | `mpc_fixed_quantile` | -41.638 | 11.363 | 0.044 | 0.194 | 64.554 | — | — |
+| bb | `mpc_fixed_rho_0.6` | -14.559 | 11.363 | 0.101 | 0.815 | 73.935 | — | — |
+| bb | `mpc_fixed_rho_0.7` | -10.546 | 11.363 | 0.108 | 0.907 | 74.463 | — | — |
+| bb | `mpc_fixed_rho_0.8` | -6.944 | 11.363 | 0.122 | 0.996 | 75.239 | — | — |
+| bb | `mpc_fixed_rho_0.9` | -9.104 | 12.238 | 0.139 | 1.046 | 75.510 | — | — |
+| bb | `tube_v2_step_static_nocap` | -16.943 | 12.463 | 0.140 | 0.904 | 74.153 | 0.720 | 0.888 |
+| bb | `tube_v2_bonf_static` | -8.444 | 11.363 | 0.140 | 0.982 | 74.935 | 0.720 | 0.884 |
+| bb | `tube_v2_bonf_aci` | -8.444 | 11.363 | 0.140 | 0.982 | 74.935 | 0.720 | 0.884 |
+| bb | `tube_v2_step_static` | -13.681 | 11.363 | 0.157 | 0.890 | 73.773 | 0.714 | 0.893 |
+| bb | `tube_v2_step_aci` | -12.355 | 11.363 | 0.147 | 0.907 | 74.307 | 0.692 | 0.884 |

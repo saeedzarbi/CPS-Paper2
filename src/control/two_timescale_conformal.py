@@ -15,7 +15,11 @@ from src.training.certified_perceptual_shield import ConformalConfig, ConformalT
 from src.training.conformal_tube import ConformalTubeConfig
 from src.training.conformal_tube_v2 import ConformalTubeV2Config, TubeMode
 from src.training.tube_mpc_policy import TubeMPCConfig, TubeMPCPolicy
-from src.training.fixed_quantile_mpc import FixedQuantileMPCPolicy, FixedRhoMPCPolicy, load_or_fit_quantile
+from src.training.fixed_quantile_mpc import (
+    FixedQuantileMPCPolicy,
+    FixedRhoMPCPolicy,
+    load_or_fit_quantile,
+)
 from src.training.robust_mpc_logu_policy import RobustMPCLogUtilityPolicy
 from src.training.tube_mpc_policy_v2 import TubeV2MPCConfig, TubeV2MPCPolicy
 
@@ -67,6 +71,13 @@ PHASE3_BASELINE_ARMS: tuple[str, ...] = (
     "mpc_fixed_rho_0.8",
     "mpc_fixed_rho_0.9",
     "tube_v2_step_static_nocap",
+)
+
+SMOKE_ARMS: tuple[str, ...] = PHASE3_BASELINE_ARMS + (
+    "tube_v2_bonf_static",
+    "tube_v2_bonf_aci",
+    "tube_v2_step_static",
+    "tube_v2_step_aci",
 )
 
 TUBE_V2_ARMS: tuple[TubeV2Arm, ...] = (
@@ -585,7 +596,8 @@ def make_controlled_policy(
         from configs.trace_sets_v2 import TRACE_SETS_V2
 
         train_dirs = [TRACE_SETS_V2[k]["train"] for k in TRACE_SETS_V2]
-        q = load_or_fit_quantile([p for p in train_dirs if p.is_dir()], alpha=cfg.alpha)
+        dirs = [p for p in train_dirs if p.is_dir()]
+        q = load_or_fit_quantile(dirs, alpha=cfg.alpha)
         return FixedQuantileMPCPolicy(
             env,
             q=q,

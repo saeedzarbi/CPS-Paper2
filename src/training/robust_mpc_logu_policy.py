@@ -23,13 +23,13 @@ class RobustMPCLogUtilityPolicy:
         self._seq_cache: dict[int, np.ndarray] = {}
         self._tp_hist: list[float] = []
         self._err_hist: list[float] = []
-        self._last_pred: float | None = None
+        self._last_harmonic_kbps: float | None = None
         self._last_video = None
 
     def on_episode_start(self) -> None:
         self._tp_hist = []
         self._err_hist = []
-        self._last_pred = None
+        self._last_harmonic_kbps = None
         self._last_video = None
 
     def _seqs(self, h: int) -> np.ndarray:
@@ -47,8 +47,8 @@ class RobustMPCLogUtilityPolicy:
         actual = float(getattr(env, "last_raw_throughput", 0.0))
         if actual > 0:
             self._tp_hist.append(actual)
-            if self._last_pred is not None and actual > 1e-6:
-                self._err_hist.append(abs(self._last_pred - actual) / actual)
+            if self._last_harmonic_kbps is not None and actual > 1e-6:
+                self._err_hist.append(abs(self._last_harmonic_kbps - actual) / actual)
 
     def _robust_tp_kbps(self) -> float:
         h = self._tp_hist[-self.past :]
@@ -56,10 +56,9 @@ class RobustMPCLogUtilityPolicy:
             base = float(getattr(self.env, "last_raw_throughput", 500.0))
         else:
             base = float(len(h) / np.sum(1.0 / np.maximum(h, 1e-6)))
+        self._last_harmonic_kbps = base
         err = max(self._err_hist[-self.past :], default=0.0)
-        pred = base / (1.0 + err)
-        self._last_pred = pred
-        return max(pred, 10.0)
+        return max(base / (1.0 + err), 10.0)
 
     def predict(self, obs, deterministic=True):
         env = self.env

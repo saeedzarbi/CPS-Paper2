@@ -110,9 +110,17 @@ class ConformalThroughputTubeV2:
     def _min_calib(self, alpha_h: float) -> int:
         return max(int(np.ceil(1.0 / max(alpha_h, 1e-9)) - 1), 1)
 
+    def _alpha_bounds(self, step_idx: int) -> tuple[float, float, float]:
+        base = float(self._base_alpha_per_step()[step_idx])
+        lo = base / 10.0
+        hi = min(1.0, 3.0 * base)
+        return base, lo, hi
+
     def _quantile_alpha(self, step_idx: int) -> float:
-        """Miscoverage level for empirical score quantiles (fixed at nominal per-step α_h)."""
-        return float(self._base_alpha_per_step()[step_idx])
+        base, lo, hi = self._alpha_bounds(step_idx)
+        if not self.cfg.use_aci:
+            return base
+        return float(np.clip(self._alpha_t[step_idx], lo, hi))
 
     def _lower_from_hat(self, hat: float, step_idx: int) -> float:
         alpha_h = self._quantile_alpha(step_idx)
@@ -152,14 +160,13 @@ class ConformalThroughputTubeV2:
         s = self._score(hat, actual)
         self._scores[h_idx].append(s)
         if self.cfg.use_aci:
-            # Track adaptive α_h for diagnostics / future weighted scores; quantiles stay at nominal.
-            miss = 1.0 if not covered else 0.0
-            base = float(self._base_alpha_per_step()[h_idx])
+            base, lo, hi = self._alpha_bounds(h_idx)
+            err = 1.0 if not covered else 0.0
             self._alpha_t[h_idx] = float(
                 np.clip(
-                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (miss - base),
-                    base,
-                    min(0.99, max(base * 4.0, base + 0.05)),
+                    self._alpha_t[h_idx] + self.cfg.aci_gamma * (base - err),
+                    lo,
+                    hi,
                 )
             )
 
