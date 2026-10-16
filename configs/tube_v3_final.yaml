@@ -1,0 +1,23 @@
+# Tube-v3 FINAL frozen configuration. Committed BEFORE any test-split run.
+# No tuning after this file. Selected on VAL only (docs/reports/tube_v3_val_aligned.md).
+code_commit: dd6765a   # horizon-aligned Tube-v3 code (no algorithm changes after this commit)
+manifest_file: configs/trace_manifests/canonical_traces.json
+manifest_sha256: 0cd91b577f7258c90630b3d53f0d401282edeb42ad89e0096072b4c794b690a2
+split: test
+episodes_per_arm: 100
+host: bba
+master_seed: 42
+trace_sets: [5g_markov, 5g_harsh, bb, 5g_irish]
+primary_arm: tube_v2_step_static_a0.15
+arms:
+  - tube_v2_step_static_a0.15        # primary
+  - tube_v2_step_static_a0.1         # 0.9-coverage variant
+  - tube_v2_maxscore_a0.1            # joint-coverage (simultaneous) tube
+  - tube_v2_step_aci_a0.15@g0.002    # ACI, reported for shift analysis only
+  - tube_v2_bonf_static              # Bonferroni joint reference
+  - robust_mpc_logu
+  - mpc_fixed_quantile_native
+  - mpc_fixed_rho_0.5
+  - mpc_fixed_rho_0.6
+  - mpc_fixed_rho_0.7
+  - raw
