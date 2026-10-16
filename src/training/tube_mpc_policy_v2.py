@@ -24,6 +24,10 @@ class TubeV2MPCConfig:
     beam_width: int = 64
     split_objective: bool = False
     tube_kind: str = "v2"
+    # Pre-refill safety (arm suffix _safe): every step h must satisfy
+    # d_h(a, L) <= B^{(h-1)}(a, L) - margin on the conformal lower-bound trajectory
+    # (no planned rebuffer); if no sequence qualifies, fall back to the lowest bitrate.
+    safe_prerefill: bool = False
     tube: ConformalTubeV2Config = field(default_factory=ConformalTubeV2Config)
 
     def __post_init__(self) -> None:
@@ -155,6 +159,8 @@ class TubeV2MPCPolicy:
         for j in range(h):
             reb = np.maximum(0.0, dl_obj[:, j] - buf_obj)
             buf_obj = np.minimum(np.maximum(0.0, buf_obj - dl_obj[:, j]) + p, b_max)
+            if self.cfg.safe_prerefill:
+                safe &= dl[:, j] <= buf - margin
             buf = np.minimum(np.maximum(0.0, buf - dl[:, j]) + p, b_max)
             safe &= buf >= margin
             aj = seqs[:, j]
@@ -163,6 +169,9 @@ class TubeV2MPCPolicy:
             total += lu - self.cfg.reb_penalty * reb - self.cfg.smooth_weight * sm
             prev_u = lu
 
+        if self.cfg.safe_prerefill and not bool(np.any(safe)):
+            self.n_fallback = getattr(self, "n_fallback", 0) + 1
+            return 0
         total[~safe] = -1e30
         return int(seqs[int(np.argmax(total)), 0])
 

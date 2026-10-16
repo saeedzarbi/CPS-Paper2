@@ -1,14 +1,18 @@
 """Tube-v3: simultaneous (max-score) conformal joint tube.
 
 Score for a completed decision j (bounds for chunks j+1..j+H, all built from the
-same point forecast hat_j):
+same point forecast hat_j; step h=1..H covers chunk j+h-1, aligned with the planner):
 
-    S_j = max_h  s_{j,h} / sigma_{j,h},   s_{j,h} = max(0, (hat_j - y_{j+h}) / hat_j)
+    S_j = max_h  s_{j,h} / sigma_{j,h},   s_{j,h} = max(0, (hat_j - y_{j+h-1}) / hat_j)
 
 where sigma_{j,h} > 0 is a per-step scale frozen at decision time (the
 per-step empirical (1-alpha) score quantile, floored).  One quantile
 q = Quant_{1-alpha}(S) gives L_{j,h} = hat_j * (1 - q * sigma_{j,h}), so
 P(all H steps covered) >= 1 - alpha under exchangeability of decisions.
+
+With cfg.freeze_scales=True (arm suffix _fs) sigma is fixed from one half of the
+calibration traces and the joint quantile Q from the other half (stride H, no
+overlapping windows); neither is updated online, so all scores share one sigma.
 Bounds are recorded *before* any update (pre-update bounds), and the
 per-decision joint flag is evaluated against those stored bounds.
 """
@@ -71,9 +75,16 @@ class MaxScoreConformalTube(ConformalThroughputTubeV2):
         if hat <= 0:
             hat = float(self.cfg.min_kbps)
         hats = np.full(h, hat, dtype=float)
-        sig = self._sigmas(len(self._scores))
+        if self._frozen:
+            sig = np.asarray(self._frozen_sigma, dtype=float)
+        else:
+            sig = self._sigmas(len(self._scores))
         self._n_decisions += 1
-        if not self._joint_ready():
+        if self._frozen:
+            q = float(self._frozen_Q)
+            self.last_joint_q = q
+            lbs = hat * (1.0 - q * sig[:h])
+        elif not self._joint_ready():
             self._n_cold_decisions += 1
             lbs = np.full(h, float(self.cfg.cold_start_cap * hat))
             self.last_joint_q = float("nan")
@@ -123,8 +134,27 @@ class MaxScoreConformalTube(ConformalThroughputTubeV2):
         for d in (self._bounds_by_decision, self._hats_by_decision, self._sigmas_by_decision):
             d.pop(j, None)
 
+    def finalize_frozen_calibration(self) -> None:
+        """Split calibration traces: even -> sigma_h, odd -> joint quantile Q (stride H)."""
+        self._flush_fs_trace()
+        H = len(self._scores)
+        a = float(self.cfg.alpha)
+        A = self._fs_traces[0::2]
+        B = self._fs_traces[1::2] or A
+        sa = self._h_step_scores(A, H, stride=1)
+        sig = np.array([max(self._finite_sample_quantile(sa[h], a) if sa[h] else 0.0, SIGMA_FLOOR)
+                        for h in range(H)])
+        sb = self._h_step_scores(B, H, stride=H)
+        joint = [max(sb[h][i] / sig[h] for h in range(H)) for i in range(len(sb[0]))]
+        self._frozen_sigma = sig
+        self._frozen_Q = self._finite_sample_quantile(joint, a) if joint else 1.0 / float(sig.min())
+        self._frozen_n = len(joint)
+        self._frozen = True
+
     def ingest_calibration_sample(self, actual_kbps: float) -> None:
         """Offline warm-start with true h-step scores and joint max-scores."""
+        if self.cfg.freeze_scales:
+            self._fs_cur.append(float(max(actual_kbps, 1e-6)))
         actual = float(max(actual_kbps, 1e-6))
         hat = self.predict_point_kbps()
         H = len(self._scores)

@@ -101,15 +101,20 @@ def parse_tube_v3_arm(arm: str) -> dict | None:
     """Tube-v3 arms: tube_v2_step_split[_aX], tube_v2_step_static_aX, tube_v2_maxscore_aX."""
     name = str(arm)
     alpha = None
-    m = __import__("re").fullmatch(r"(tube_v2_(?:step_split|step_static|step_aci|maxscore))(?:_a(\d*\.?\d+))?", name)
+    m = __import__("re").fullmatch(
+        r"(tube_v2_(?:step_split|step_static|step_aci|maxscore))(?:_a(\d*\.?\d+))?(_safe)?(_fs)?", name
+    )
     if not m:
         return None
     base, a = m.group(1), m.group(2)
+    safe, fs = bool(m.group(3)), bool(m.group(4))
     if base in ("tube_v2_step_static", "tube_v2_step_aci") and a is None:
         return None  # legacy arm handled by parse_tube_v2_arm (unchanged)
     alpha = float(a) if a is not None else None
     kind = {"tube_v2_step_split": "split", "tube_v2_step_static": "static", "tube_v2_step_aci": "aci", "tube_v2_maxscore": "maxscore"}[base]
-    return {"kind": kind, "alpha": alpha}
+    if fs and kind not in ("static", "maxscore"):
+        return None  # freeze only defined for static per-step and max-score tubes
+    return {"kind": kind, "alpha": alpha, "safe": safe, "freeze": fs}
 
 
 def parse_tube_v2_arm(arm: str) -> tuple[TubeMode, bool, bool] | None:
@@ -468,6 +473,8 @@ class TubeV2ConformalPolicy:
         capped: bool = True,
         split_objective: bool = False,
         tube_kind: str = "v2",
+        safe_prerefill: bool = False,
+        freeze_scales: bool = False,
     ):
         self.env = env
         self.base = base_policy
@@ -482,6 +489,7 @@ class TubeV2ConformalPolicy:
             use_aci=use_aci,
             aci_gamma=float(self.cfg.aci_gamma),
             cold_start_cap=self.cfg.cold_start_cap,
+            freeze_scales=freeze_scales,
             conformal=ConformalConfig(alpha=self.cfg.alpha, window=200, k_predict=5),
         )
         self.tube_mpc = TubeV2MPCPolicy(
@@ -493,6 +501,7 @@ class TubeV2ConformalPolicy:
                 pruning="monotone",
                 split_objective=split_objective,
                 tube_kind=tube_kind,
+                safe_prerefill=safe_prerefill,
             ),
         )
 
@@ -571,7 +580,10 @@ def _warm_start_tube_v2(policy: TubeV2ConformalPolicy, trace_set_key: str) -> No
 
     variant = "native" if trace_set_key == "5g_harsh" else "default"
     dirs = calibration_dirs_for_eval(trace_set_key, variant=variant)
-    replay_throughputs_on_tube(policy.tube_mpc.tube, dirs)
+    tube = policy.tube_mpc.tube
+    replay_throughputs_on_tube(tube, dirs)
+    if tube.cfg.freeze_scales:
+        tube.finalize_frozen_calibration()
 
 
 def make_controlled_policy(
@@ -624,6 +636,8 @@ def make_controlled_policy(
             capped=True,
             split_objective=(v3["kind"] == "split"),
             tube_kind=("maxscore" if v3["kind"] == "maxscore" else "v2"),
+            safe_prerefill=v3["safe"],
+            freeze_scales=v3["freeze"],
         )
         if trace_set_key:
             _warm_start_tube_v2(pol, trace_set_key)

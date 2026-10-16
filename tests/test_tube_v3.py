@@ -55,11 +55,12 @@ def test_maxscore_warm_start_fills_joint_scores() -> None:
 def test_arm_parsing() -> None:
     assert parse_tube_v3_arm("tube_v2_step_static") is None
     assert parse_tube_v2_arm("tube_v2_step_static") is not None
-    assert parse_tube_v3_arm("tube_v2_step_split") == {"kind": "split", "alpha": None}
-    assert parse_tube_v3_arm("tube_v2_step_static_a0.2") == {"kind": "static", "alpha": 0.2}
-    assert parse_tube_v3_arm("tube_v2_maxscore_a0.1") == {"kind": "maxscore", "alpha": 0.1}
+    old = {"safe": False, "freeze": False}  # legacy arms keep their exact semantics
+    assert parse_tube_v3_arm("tube_v2_step_split") == {"kind": "split", "alpha": None, **old}
+    assert parse_tube_v3_arm("tube_v2_step_static_a0.2") == {"kind": "static", "alpha": 0.2, **old}
+    assert parse_tube_v3_arm("tube_v2_maxscore_a0.1") == {"kind": "maxscore", "alpha": 0.1, **old}
     assert parse_tube_v2_arm("tube_v2_step_split") is None
-    assert parse_tube_v3_arm("tube_v2_step_aci_a0.15") == {"kind": "aci", "alpha": 0.15}
+    assert parse_tube_v3_arm("tube_v2_step_aci_a0.15") == {"kind": "aci", "alpha": 0.15, **old}
     assert parse_tube_v3_arm("tube_v2_step_aci") is None
 
 

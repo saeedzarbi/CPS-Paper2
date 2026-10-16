@@ -38,6 +38,9 @@ class ConformalTubeV2Config:
     # 0 = aligned with the planner (h=1 is the chunk being downloaded at decision j).
     # 1 = legacy Tube-v2 behaviour (off by one); kept only for regression tests.
     legacy_step_offset: int = 0
+    # Split-conformal freeze (arm suffix _fs): quantiles (and max-score sigma) are fitted once
+    # on the calibration traces with true h-step scores and never updated online.
+    freeze_scales: bool = False
     conformal: ConformalConfig = field(
         default_factory=lambda: ConformalConfig(alpha=0.10, window=200, k_predict=5)
     )
@@ -64,6 +67,13 @@ class ConformalThroughputTubeV2:
         self._n_cold_decisions: int = 0
         self._aci_updates: int = 0
         self._aci_at_clip: int = 0
+        self._frozen: bool = False
+        self._frozen_q_step: np.ndarray | None = None
+        self._frozen_sigma: np.ndarray | None = None
+        self._frozen_Q: float = float("nan")
+        self._frozen_n: int = 0
+        self._fs_cur: list[float] = []
+        self._fs_traces: list[list[float]] = []
 
     def _base_alpha_per_step(self) -> np.ndarray:
         h = max(int(self.cfg.horizon), 1)
@@ -83,8 +93,38 @@ class ConformalThroughputTubeV2:
         self._aci_updates = 0
         self._aci_at_clip = 0
 
+    def _flush_fs_trace(self) -> None:
+        if getattr(self, "_fs_cur", None):
+            self._fs_traces.append(self._fs_cur)
+            self._fs_cur = []
+
+    def _h_step_scores(self, traces: list[list[float]], H: int, stride: int = 1) -> list[list[float]]:
+        """True h-step scores: decision j uses HM of y[j-k:j], step h covers y[j+h-1]."""
+        k = max(int(self.cfg.conformal.k_predict), 1)
+        out: list[list[float]] = [[] for _ in range(H)]
+        for tr in traces:
+            y = np.clip(np.asarray(tr, dtype=float), 1e-6, None)
+            for j in range(k, len(y) - H + 1, max(int(stride), 1)):
+                hat = float(k / np.sum(1.0 / y[j - k : j]))
+                for h in range(H):
+                    out[h].append(self._score(hat, float(y[j + h])))
+        return out
+
+    def finalize_frozen_calibration(self) -> None:
+        """Fit per-step split-conformal quantiles once (all calibration traces)."""
+        self._flush_fs_trace()
+        H = len(self._scores)
+        sc = self._h_step_scores(self._fs_traces, H, stride=1)
+        self._frozen_q_step = np.array(
+            [self._finite_sample_quantile(sc[h], float(self._base_alpha_per_step()[h])) for h in range(H)]
+        )
+        self._frozen_n = len(sc[0])
+        self._frozen = True
+
     def reset_episode_state(self) -> None:
         """Clear per-episode bookkeeping; keep score buffers and ACI state."""
+        if not getattr(self, "_frozen", True):
+            self._flush_fs_trace()
         self._hats_by_decision.clear()
         self._bounds_by_decision.clear()
         self._actual_by_chunk.clear()
@@ -140,6 +180,8 @@ class ConformalThroughputTubeV2:
         return float(np.clip(self._alpha_t[step_idx], lo, hi))
 
     def _in_cold_start(self, step_idx: int) -> bool:
+        if self._frozen:
+            return False
         nominal = float(self._base_alpha_per_step()[step_idx])
         return len(self._scores[step_idx]) < self._min_calib(nominal)
 
@@ -147,7 +189,10 @@ class ConformalThroughputTubeV2:
         miscoverage = self._quantile_alpha(step_idx)
         if self._in_cold_start(step_idx):
             return float(self.cfg.cold_start_cap * hat)
-        q = self._finite_sample_quantile(self._scores[step_idx], miscoverage)
+        if self._frozen and self._frozen_q_step is not None:
+            q = float(self._frozen_q_step[step_idx])
+        else:
+            q = self._finite_sample_quantile(self._scores[step_idx], miscoverage)
         if self.cfg.score == "log":
             return float(hat * np.exp(-q))
         return float(hat * (1.0 - q))
@@ -229,6 +274,8 @@ class ConformalThroughputTubeV2:
     def ingest_calibration_sample(self, actual_kbps: float) -> None:
         """Offline warm-start: append scores from (harmonic hat, actual) without MPC bounds."""
         actual = float(max(actual_kbps, 1e-6))
+        if self.cfg.freeze_scales:
+            self._fs_cur.append(actual)
         hat = self.predict_point_kbps()
         if hat > 0:
             s = self._score(hat, actual)
