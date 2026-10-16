@@ -1,0 +1,46 @@
+# Tube-v3 ADAPTIVE final frozen configuration. Committed BEFORE any test-split run of these arms.
+# Alphas chosen mechanically by the pre-registered rule configs/tube_v3_alpha_rule.yaml (commit e3593f8)
+# applied to VAL results (results/tube_v3/adaptive_val/alpha_selection.json). No tuning after this file.
+# configs/tube_v3_final.yaml and its results stay untouched (audit trail).
+code_commit: f6727ef   # _safe / _fs implementation (0d9b582) + runners; no algorithm change after
+manifest_file: configs/trace_manifests/canonical_traces.json
+manifest_sha256: 0cd91b577f7258c90630b3d53f0d401282edeb42ad89e0096072b4c794b690a2
+alpha_rule: configs/tube_v3_alpha_rule.yaml
+split: test
+episodes_per_arm: 100
+host: bba
+master_seed: 42
+trace_sets: [5g_markov, 5g_harsh, bb, 5g_irish]
+primary_variant: maxscore_safe_fs
+global_alpha_primary: 0.1
+arms_5g_markov:   # per-family rule-selected alphas
+  - tube_v2_maxscore_a0.1_safe_fs   # PRIMARY
+  - tube_v2_step_static_a0.1_safe_fs   # rule: no admissible
+  - tube_v2_maxscore_a0.1_safe
+  - tube_v2_step_static_a0.1_safe   # rule: no admissible
+arms_5g_harsh:   # per-family rule-selected alphas
+  - tube_v2_maxscore_a0.2_safe_fs   # PRIMARY
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_maxscore_a0.2_safe
+  - tube_v2_step_static_a0.1_safe   # rule: no admissible
+arms_bb:   # per-family rule-selected alphas
+  - tube_v2_maxscore_a0.15_safe_fs   # PRIMARY
+  - tube_v2_step_static_a0.1_safe_fs   # rule: no admissible
+  - tube_v2_maxscore_a0.1_safe
+  - tube_v2_step_static_a0.1_safe
+arms_5g_irish:   # per-family rule-selected alphas
+  - tube_v2_maxscore_a0.1_safe_fs   # PRIMARY
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_maxscore_a0.1_safe
+  - tube_v2_step_static_a0.1_safe
+arms:   # common to all families
+  - tube_v2_maxscore_a0.1_safe_fs   # global-alpha variant
+  - tube_v2_step_static_a0.1_safe_fs   # global-alpha variant (no alpha admissible in every family)
+  - tube_v2_step_static_a0.15   # legacy frozen primary (reproducibility check vs tube_v3_final)
+  - tube_v2_maxscore_a0.1       # legacy (reproducibility check)
+  - robust_mpc_logu
+  - mpc_fixed_quantile_native
+  - mpc_fixed_rho_0.5
+  - mpc_fixed_rho_0.6
+  - mpc_fixed_rho_0.7
+  - raw
