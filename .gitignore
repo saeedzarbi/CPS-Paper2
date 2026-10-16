@@ -8,6 +8,7 @@ venv/
 .env.*
 
 # Results / heavy artifacts
+logs/
 results/**/*
 !results/**/.gitkeep
 *.h5

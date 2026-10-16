@@ -78,3 +78,16 @@ Gitignored `mattermost_webhook.url` at repo root, or `MATTERMOST_WEBHOOK_URL`.
 ```bash
 python scripts/paper2/mattermost_notify.py "clean_v3 smoke OK"
 ```
+
+## 8. Tube-v2 (dedicated VPS, server 45)
+
+Headline Tube-v2 campaigns run on **`45.195.250.136`** (credentials in gitignored `server.txt`), not tools-new. See [`docs/tube_v2_server_45.md`](tube_v2_server_45.md).
+
+```bash
+cd /root/CPS-Paper2 && git pull origin main
+python3 -m venv .venv-tube-v2 && source .venv-tube-v2/bin/activate
+pip install -r requirements-smoke.txt pytest
+export PYTHONPATH=$PWD OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+python scripts/paper2/phase0_tube_v2_audit.py   # CHECKPOINT 0 inventory
+tmux new -s tube_v2   # long jobs (once run_all_tube_v2.sh exists)
+```

@@ -3,6 +3,8 @@ Multi-horizon conformal throughput tube for Tube-MPC (Paper 2, no VMAF).
 
 Wraps online ACI or static split-conformal estimators and exposes a horizon
 vector of pessimistic throughput lower bounds (kbps) for MPC simulation.
+
+For per-step non-constant tubes see ``src.training.conformal_tube_v2``.
 """
 
 from __future__ import annotations
