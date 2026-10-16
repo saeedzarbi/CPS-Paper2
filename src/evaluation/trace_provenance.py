@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from configs.paths import PROJECT_ROOT
+
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_MANIFEST = ROOT / "configs" / "trace_manifests" / "canonical_traces.json"
 
@@ -19,6 +21,25 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def relpath_from_repo(path: Path) -> str:
+    resolved = path.expanduser().resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
+
+
+def resolve_manifest_directory(entry: dict[str, Any]) -> Path:
+    """Resolve a manifest directory entry to an absolute path."""
+    relpath = entry.get("relpath") or entry.get("path")
+    if not relpath:
+        raise KeyError(f"manifest entry missing relpath: {entry.get('logical_name')}")
+    p = Path(relpath)
+    if p.is_absolute():
+        return p
+    return (PROJECT_ROOT / p).resolve()
+
+
 def manifest_entries_for_dir(
     directory: Path,
     *,
@@ -26,7 +47,12 @@ def manifest_entries_for_dir(
     generator: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not directory.is_dir():
-        return {"logical_name": logical_name, "path": str(directory), "missing": True, "files": {}}
+        return {
+            "logical_name": logical_name,
+            "relpath": relpath_from_repo(directory),
+            "missing": True,
+            "files": {},
+        }
     files: dict[str, str] = {}
     for p in sorted(directory.glob("*.json")):
         if p.name.startswith("trace_stats"):
@@ -34,7 +60,7 @@ def manifest_entries_for_dir(
         files[p.name] = sha256_file(p)
     return {
         "logical_name": logical_name,
-        "path": str(directory),
+        "relpath": relpath_from_repo(directory),
         "generator": generator or {},
         "files": files,
     }
@@ -49,6 +75,18 @@ def load_canonical_manifest() -> dict[str, Any]:
     return json.loads(CANONICAL_MANIFEST.read_text(encoding="utf-8"))
 
 
+def trace_directories_absent(manifest: dict[str, Any] | None = None) -> bool:
+    """True when no manifest directory has any JSON trace files on disk."""
+    manifest = manifest or load_canonical_manifest()
+    for entry in manifest.get("directories", []):
+        if entry.get("missing"):
+            continue
+        dir_path = resolve_manifest_directory(entry)
+        if dir_path.is_dir() and any(dir_path.glob("*.json")):
+            return False
+    return True
+
+
 def verify_canonical_manifest(
     *,
     strict: bool = True,
@@ -58,14 +96,15 @@ def verify_canonical_manifest(
     manifest = manifest or load_canonical_manifest()
     errors: list[str] = []
     for entry in manifest.get("directories", []):
+        logical = entry.get("logical_name", "?")
         if entry.get("missing"):
             if strict:
-                errors.append(f"{entry['logical_name']}: directory missing ({entry.get('path')})")
+                errors.append(f"{logical}: directory missing ({entry.get('relpath')})")
             continue
-        dir_path = Path(entry["path"])
+        dir_path = resolve_manifest_directory(entry)
         expected: dict[str, str] = entry.get("files", {})
         if not dir_path.is_dir():
-            errors.append(f"{entry['logical_name']}: path not found: {dir_path}")
+            errors.append(f"{logical}: path not found: {dir_path}")
             continue
         actual: dict[str, str] = {}
         for p in sorted(dir_path.glob("*.json")):
@@ -78,13 +117,13 @@ def verify_canonical_manifest(
             missing = sorted(exp_names - act_names)
             extra = sorted(act_names - exp_names)
             if missing:
-                errors.append(f"{entry['logical_name']}: missing files {missing[:5]}")
+                errors.append(f"{logical}: missing files {missing[:5]}")
             if extra:
-                errors.append(f"{entry['logical_name']}: extra files {extra[:5]}")
+                errors.append(f"{logical}: extra files {extra[:5]}")
         for name, digest in expected.items():
             if name in actual and actual[name] != digest:
                 errors.append(
-                    f"{entry['logical_name']}/{name}: sha256 mismatch "
+                    f"{logical}/{name}: sha256 mismatch "
                     f"(expected {digest[:12]}… got {actual[name][:12]}…)"
                 )
     return errors
@@ -107,7 +146,10 @@ __all__ = [
     "CANONICAL_MANIFEST",
     "load_canonical_manifest",
     "manifest_entries_for_dir",
+    "relpath_from_repo",
+    "resolve_manifest_directory",
     "sha256_file",
+    "trace_directories_absent",
     "verify_canonical_manifest",
     "verify_or_exit",
 ]

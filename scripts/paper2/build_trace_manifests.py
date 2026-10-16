@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from configs.paths import (
-    STANDARDIZED_DIR,
     TEST_TRACES_5G_IRISH_MMSYS20_DIR,
     TEST_TRACES_5G_MARKOV_DIR,
     TEST_TRACES_V18_DIR,
@@ -23,22 +22,24 @@ from configs.trace_sets_v2 import (
     HARSH_CALIB_FRACTION,
     HARSH_FAMILY_SEED,
     HARSH_SOURCE_DIR,
-    SPLIT_ROOT,
+    HARSH_TEST_FRACTION,
+    HARSH_VAL_FRACTION,
     VAL_FRACTION,
     VAL_SEED,
-    harsh_family_calib_test_dirs,
+    harsh_family_three_way_dirs,
     train_minus_val_dir,
     val_trace_dir,
 )
-MARKOV_SEED = 4242
-N_TRAIN = 24
-N_TEST = 12
-TRACE_LEN = 1200
 from src.evaluation.trace_provenance import (
     CANONICAL_MANIFEST,
     manifest_entries_for_dir,
     verify_canonical_manifest,
 )
+
+MARKOV_SEED = 4242
+N_TRAIN = 24
+N_TEST = 12
+TRACE_LEN = 1200
 
 MARKOV_GEN = {
     "script": "scripts/paper2/gen_markov_traces.py",
@@ -75,19 +76,47 @@ def _collect_directories() -> list[tuple[str, Path, dict | None]]:
         except (FileNotFoundError, KeyError):
             pass
     try:
-        calib, test = harsh_family_calib_test_dirs()
+        calib, val, test = harsh_family_three_way_dirs()
         dirs.append(
             (
                 "split_5g_harsh_calib",
                 calib,
-                {"seed": HARSH_FAMILY_SEED, "fraction": HARSH_CALIB_FRACTION},
+                {
+                    "seed": HARSH_FAMILY_SEED,
+                    "fractions": {
+                        "calib": HARSH_CALIB_FRACTION,
+                        "val": HARSH_VAL_FRACTION,
+                        "test": HARSH_TEST_FRACTION,
+                    },
+                },
             )
         )
         dirs.append(
             (
-                "split_5g_harsh_eval_test",
+                "split_5g_harsh_val",
+                val,
+                {
+                    "seed": HARSH_FAMILY_SEED,
+                    "fractions": {
+                        "calib": HARSH_CALIB_FRACTION,
+                        "val": HARSH_VAL_FRACTION,
+                        "test": HARSH_TEST_FRACTION,
+                    },
+                },
+            )
+        )
+        dirs.append(
+            (
+                "split_5g_harsh_test",
                 test,
-                {"seed": HARSH_FAMILY_SEED, "fraction": HARSH_CALIB_FRACTION},
+                {
+                    "seed": HARSH_FAMILY_SEED,
+                    "fractions": {
+                        "calib": HARSH_CALIB_FRACTION,
+                        "val": HARSH_VAL_FRACTION,
+                        "test": HARSH_TEST_FRACTION,
+                    },
+                },
             )
         )
     except FileNotFoundError:
@@ -100,9 +129,7 @@ def build_manifest() -> dict:
     for logical, path, gen in _collect_directories():
         entries.append(manifest_entries_for_dir(path, logical_name=logical, generator=gen))
     return {
-        "version": 1,
-        "standardized_root": str(STANDARDIZED_DIR),
-        "split_root": str(SPLIT_ROOT),
+        "version": 2,
         "directories": entries,
     }
 

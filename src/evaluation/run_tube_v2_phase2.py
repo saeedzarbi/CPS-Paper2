@@ -20,9 +20,9 @@ from src.control.two_timescale_conformal import RHO_SWEEP_ARMS, ControlArmConfig
 from src.evaluation.clean_abr_eval import run_arm
 from src.evaluation.cluster_stats import cluster_bootstrap_mean_ci
 from src.evaluation.paired_bootstrap import (
+    align_paired_metric,
     format_ci,
     paired_bootstrap_mean_ci,
-    paired_episode_values,
     win_tie_loss,
 )
 from src.evaluation.trace_provenance import verify_or_exit
@@ -33,21 +33,19 @@ REPORT_PATH = ROOT / "docs" / "reports" / "tube_v2_phase2_pilot.md"
 GAMMAS = (0.002, 0.005, 0.01, 0.02)
 TUBE_STATIC_ARMS = (
     "tube_v2_bonf_static",
-    "tube_v2_bonf_static_nocap",
     "tube_v2_step_static",
     "tube_v2_step_static_nocap",
 )
 TUBE_ACI_ARMS = (
     "tube_v2_bonf_aci",
-    "tube_v2_bonf_aci_nocap",
     "tube_v2_step_aci",
     "tube_v2_step_aci_nocap",
 )
-BASELINE_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_harsh", *RHO_SWEEP_ARMS)
+BASELINE_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_native", *RHO_SWEEP_ARMS)
 
 QOE_METRICS = ("episodic_qoe", "rebuffer_total", "mean_vmaf", "joint_tube_coverage_decision")
 COVERAGE_COLS = tuple(f"cov_h{i}" for i in range(1, 6)) + ("joint_tube_coverage_decision",)
-REF_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_harsh")
+REF_ARMS = ("robust_mpc_logu", "mpc_fixed_quantile_native")
 
 
 def _job_key(arm: str, gamma: float | None) -> str:
@@ -229,23 +227,27 @@ def build_report(
                     continue
                 lines.append(f"### Paired vs `{ref_name}` (episode bootstrap Δ, 95% CI; W/T/L)")
                 lines.append("")
-                lines.append("| job | ΔQoE | Δrebuf | ΔVMAF | Δjoint_cov | W/T/L QoE |")
-                lines.append("|-----|------|--------|-------|------------|-----------|")
+                lines.append("| job | n_pairs | ΔQoE | Δrebuf | ΔVMAF | Δjoint_cov | W/T/L QoE |")
+                lines.append("|-----|---------|------|--------|-------|------------|-----------|")
                 ref_rows = rows_by_arm[ref_key]
                 for key, rows in sorted(rows_by_arm.items()):
                     if key == ref_key or not parse_tube_v2_arm(str(rows[0].get("arm", ""))):
                         continue
                     cells = []
                     wtl = ""
+                    n_pairs = 0
                     for m, hib in (
                         ("episodic_qoe", True),
                         ("rebuffer_total", False),
                         ("mean_vmaf", True),
                         ("joint_tube_coverage_decision", True),
                     ):
-                        a = paired_episode_values(rows, m)
-                        b = paired_episode_values(ref_rows, m)
-                        if len(a) == 0 or len(a) != len(b):
+                        try:
+                            a, b, n_pairs = align_paired_metric(rows, ref_rows, m)
+                        except ValueError:
+                            cells.append("—")
+                            continue
+                        if n_pairs == 0:
                             cells.append("—")
                             continue
                         d, lo, hi = paired_bootstrap_mean_ci(a, b)
@@ -253,7 +255,9 @@ def build_report(
                         if m == "episodic_qoe":
                             w, t, l = win_tie_loss(a, b, higher_is_better=True)
                             wtl = f"{w}/{t}/{l}"
-                    lines.append(f"| `{key}` | " + " | ".join(cells) + f" | {wtl} |")
+                    lines.append(
+                        f"| `{key}` | {n_pairs} | " + " | ".join(cells) + f" | {wtl} |"
+                    )
                 lines.append("")
             lines.append("### QoE–rebuffer (tube + baselines)")
             lines.append("")

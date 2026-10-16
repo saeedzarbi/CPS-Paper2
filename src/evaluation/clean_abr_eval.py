@@ -126,6 +126,7 @@ def run_episode(
     row = {
         "episode": ep,
         "trace_id": str(getattr(env, "current_trace_idx", 0)),
+        "trace_file": str(getattr(env, "current_trace_file", "")),
         "video_name": str(env.current_video_name),
         "rebuffer_total": reb_total,
         "rebuffer_p95_chunk": reb_p95,

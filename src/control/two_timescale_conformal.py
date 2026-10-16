@@ -32,6 +32,7 @@ AblationArm = Literal[
 BaselineArm = Literal[
     "robust_mpc_logu",
     "mpc_fixed_quantile",
+    "mpc_fixed_quantile_native",
     "mpc_fixed_quantile_harsh",
     "mpc_fixed_rho_0.5",
     "mpc_fixed_rho_0.55",
@@ -72,7 +73,7 @@ PHASE3_BASELINE_ARMS: tuple[str, ...] = (
     "tube_conformal",
     "robust_mpc_logu",
     "mpc_fixed_quantile",
-    "mpc_fixed_quantile_harsh",
+    "mpc_fixed_quantile_native",
     *RHO_SWEEP_ARMS,
     "tube_v2_step_static_nocap",
 )
@@ -612,13 +613,13 @@ def make_controlled_policy(
             safety_margin=cfg.effective_safety_margin(),
         )
 
-    if arm in ("mpc_fixed_quantile", "mpc_fixed_quantile_harsh"):
+    if arm in ("mpc_fixed_quantile", "mpc_fixed_quantile_native", "mpc_fixed_quantile_harsh"):
         from configs.trace_sets_v2 import calibration_dirs_for_eval
 
         ts = trace_set_key or "5g_markov"
-        if arm == "mpc_fixed_quantile_harsh":
+        if arm in ("mpc_fixed_quantile_native", "mpc_fixed_quantile_harsh"):
             calib_dirs = calibration_dirs_for_eval(ts, variant="native")
-            variant = "harsh_native"
+            variant = "harsh_native" if ts == "5g_harsh" else "calib"
         else:
             variant = "markov_transfer" if ts == "5g_harsh" else "calib"
             calib_dirs = calibration_dirs_for_eval(ts, variant=variant)

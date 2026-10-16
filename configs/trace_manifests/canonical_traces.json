@@ -1,11 +1,9 @@
 {
-  "version": 1,
-  "standardized_root": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized",
-  "split_root": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\results\\tube_v2\\splits",
+  "version": 2,
   "directories": [
     {
       "logical_name": "train_traces_5g_markov",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\train_traces_5g_markov",
+      "relpath": "data/standardized/train_traces_5g_markov",
       "generator": {
         "script": "scripts/paper2/gen_markov_traces.py",
         "seed": 4242,
@@ -123,7 +121,7 @@
     },
     {
       "logical_name": "test_traces_5g_markov",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\test_traces_5g_markov",
+      "relpath": "data/standardized/test_traces_5g_markov",
       "generator": {
         "script": "scripts/paper2/gen_markov_traces.py",
         "seed": 4242,
@@ -199,7 +197,7 @@
     },
     {
       "logical_name": "train_traces_v18",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\train_traces_v18",
+      "relpath": "data/standardized/train_traces_v18",
       "generator": {},
       "files": {
         "fcc_test_fcc_trace_10652_http---www.amazon.json": "8fd35e2fd0ed135403f1ce0774159aff9c00f7df82830c56d5ea327252aa68cf",
@@ -312,7 +310,7 @@
     },
     {
       "logical_name": "test_traces_v18",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\test_traces_v18",
+      "relpath": "data/standardized/test_traces_v18",
       "generator": {},
       "files": {
         "fcc_test_fcc_trace_215364_http---www.ebay.json": "923f52bab03f171dca61959376ed2893de9f7f51c1f729c3540b40dd9616b5a5",
@@ -341,7 +339,7 @@
     },
     {
       "logical_name": "test_traces_5g_harsh_v15",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\test_traces_5g_harsh_v15",
+      "relpath": "data/standardized/test_traces_5g_harsh_v15",
       "generator": {},
       "files": {
         "synthetic_5g_v14_0000.json": "b640f1a2b9b333e4da649133b10f5725b723896e660c9782ab172d2deed9a697",
@@ -398,13 +396,13 @@
     },
     {
       "logical_name": "train_traces_5g_irish_mmsys20",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\train_traces_5g_irish_mmsys20",
+      "relpath": "data/standardized/train_traces_5g_irish_mmsys20",
       "generator": {},
       "files": {}
     },
     {
       "logical_name": "test_traces_5g_irish_mmsys20",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\data\\standardized\\test_traces_5g_irish_mmsys20",
+      "relpath": "data/standardized/test_traces_5g_irish_mmsys20",
       "generator": {},
       "files": {
         "Amazon_Prime_Driving_animated-AdventureTime_B_2019.11.28_07.27.57.json": "ad723b38117b2bb35e08d4c331da1c7c592e4272bb8bdc4038949e6a87f80c41",
@@ -489,7 +487,7 @@
     },
     {
       "logical_name": "split_5g_markov_val",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\results\\tube_v2\\splits\\5g_markov_val",
+      "relpath": "results/tube_v2/splits/5g_markov_val",
       "generator": {
         "seed": 2026,
         "fraction": 0.2
@@ -533,7 +531,7 @@
     },
     {
       "logical_name": "split_5g_markov_train_minus_val",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\results\\tube_v2\\splits\\5g_markov_train_minus_val",
+      "relpath": "results/tube_v2/splits/5g_markov_train_minus_val",
       "generator": {
         "seed": 2026,
         "fraction": 0.2
@@ -613,72 +611,94 @@
     },
     {
       "logical_name": "split_5g_harsh_calib",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\results\\tube_v2\\splits\\5g_harsh_calib",
+      "relpath": "results/tube_v2/splits/5g_harsh_calib",
       "generator": {
         "seed": 2027,
-        "fraction": 0.4
+        "fractions": {
+          "calib": 0.4,
+          "val": 0.2,
+          "test": 0.4
+        }
       },
       "files": {
         "synthetic_5g_v14_0000.json": "b640f1a2b9b333e4da649133b10f5725b723896e660c9782ab172d2deed9a697",
-        "synthetic_5g_v14_0002.json": "e3871db0283d7d322ba967efda7d20eafa1f7c69e93f48bc2d3ba84fa7086f87",
-        "synthetic_5g_v14_0004.json": "087bf078e9c16273a7f3f9926ad06a04998a1dbfbd4f3da07e6c99f63a5f248c",
-        "synthetic_5g_v14_0005.json": "76687e53017493792273676756256486ab93750add65e452d0dc3236d475d5ae",
-        "synthetic_5g_v14_0009.json": "6c76f7f839f42960ad2d22bc54f3defad6abb311f5513511fe8c4f16d4cfad96",
-        "synthetic_5g_v14_0013.json": "adf466b50e736b71cecae0160a8090566e43771e68496893bc7d02ad578423d4",
-        "synthetic_5g_v14_0017.json": "db7f7f0b02c0c7ba80b48398bc21fea64162dc3483044326a0737a9bdecc3053",
-        "synthetic_5g_v14_0018.json": "0e3c30c2c64ca3148f9cf2b46cbdf3e17d9b10afd78b047c49b42583647ad4ab",
-        "synthetic_5g_v14_0019.json": "7c23b90d52561eedf48bf0f4d14790f3796f3446a94f52c546a2faf450112989",
-        "synthetic_5g_v14_0023.json": "29c45e45aaa374d9315b182f0534fe1e6ac20800c19b0184c0b890961c81c640",
-        "synthetic_5g_v14_0026.json": "6680688e003d239e4c2deaefe9e534e2f04acd8cf827aca2c4dab591c3ab0255",
-        "synthetic_5g_v14_0028.json": "b9eb9957d5a9e48efa57805ce088c52738d3c7f8727532a9448efc0bb5450b4b",
-        "synthetic_5g_v14_0029.json": "18c243147b1cff964fad3807fe82629dd6a482c48d4a18fde0e976116c0fed20",
-        "synthetic_5g_v14_0035.json": "561ce58138f46b3bce737f7d30303a33ef41671be8bcf21dd6d87a32db0e3681",
-        "synthetic_5g_v14_0039.json": "650d2a50036057b3cd08e502084083955316d5ab04dda9ee003df96ef763b979",
-        "synthetic_5g_v14_0042.json": "701f8019d0a61c68b4781cdf7a8b813b54fc0a74800a384d814ffa991cd2851f",
-        "synthetic_5g_v14_0043.json": "0f77fca3497a9985c1b11c5ac266b616f5ecda5b4ce0d7b65dfa67bfd786a970",
-        "synthetic_5g_v14_0045.json": "9c81c06b6f5a612ffb402c1afa660e8085479182cbd71db8d71d07244d69249a",
-        "synthetic_5g_v14_0048.json": "36aa1f130dbc8bc8f4bd752460be11808a5f3aaf0c8476983168685236ea300a",
-        "synthetic_5g_v14_0049.json": "80be4bac3ea43f4dba197f46d88261ca2e55da3efc42230ba16b1eb591e8e118"
-      }
-    },
-    {
-      "logical_name": "split_5g_harsh_eval_test",
-      "path": "C:\\Users\\Saeed\\OneDrive\\Desktop\\CPS-Paper2\\results\\tube_v2\\splits\\5g_harsh_eval_test",
-      "generator": {
-        "seed": 2027,
-        "fraction": 0.4
-      },
-      "files": {
-        "synthetic_5g_v14_0001.json": "ad10c253db8496def0cc167898e2484254aad4fc06e280717e05f6f32fb437ae",
-        "synthetic_5g_v14_0003.json": "06e3e176a10a4a09e1fb6eb212687eaff70ce960605e64e7703ec906772b8fd0",
-        "synthetic_5g_v14_0006.json": "1c715ea01e35b60773e169b6effa57b58ef0f843211c8497e1f37ae3b0e4798d",
         "synthetic_5g_v14_0007.json": "d1d687b25ab1d324914ef562cc60e8accb6df120599c0817fec58d7c62721485",
         "synthetic_5g_v14_0008.json": "2a1576ddc5b7ee34b76f7b5139a11821310e7a397425f03d7ff3f66c5b867105",
         "synthetic_5g_v14_0010.json": "94a5b7c025a3dbf4104038145b1f2f2865b7940892110761e991df954879a9b3",
         "synthetic_5g_v14_0011.json": "f1cbf0fed6a00c98aa8cff4b1b838153434900c45f5e69073819a37a54048426",
         "synthetic_5g_v14_0012.json": "fdd1144cf1aaf2de352e63b1046921b077ee544f267c52e1a6b77295242ee828",
-        "synthetic_5g_v14_0014.json": "ef0306d8172f90768480cdfab88184649a5246c84c92e5ee79ec4a20d1994d4a",
-        "synthetic_5g_v14_0015.json": "18e0769d2764e5ab8daf3549ff4d7b657cc92844e59edb4a34b2a61aea3b5b24",
-        "synthetic_5g_v14_0016.json": "f81471d08ae8dacce7f974e9b09d3858b621f790547d53997720853b9092a727",
         "synthetic_5g_v14_0020.json": "75fd17a975ec4d2ba89a8f390175b8c6834b5ef9857dfb6514ce583f7cf53fc3",
         "synthetic_5g_v14_0021.json": "aec3acd2a67d6febfc6fd9821a9600abc5e8c64fcc231fe8dd7ba4a469846456",
-        "synthetic_5g_v14_0022.json": "12eb292b980c3c0fe3cabcf2230cb5a624861759655e755ab86b883b2ec70bb6",
-        "synthetic_5g_v14_0024.json": "5186cb71ea20df382147780e20937c44c01dacac2a4babf4d701e64f2fe1f2da",
-        "synthetic_5g_v14_0025.json": "da49d0f9f01ab35238641161ae109ebfd82599c7ccd9fef6533424efb319a14e",
-        "synthetic_5g_v14_0027.json": "4212193f710dd4aefcecd1f53836c36fb250d698fb3038a6302b1aa6c7d3fc9e",
+        "synthetic_5g_v14_0026.json": "6680688e003d239e4c2deaefe9e534e2f04acd8cf827aca2c4dab591c3ab0255",
+        "synthetic_5g_v14_0029.json": "18c243147b1cff964fad3807fe82629dd6a482c48d4a18fde0e976116c0fed20",
         "synthetic_5g_v14_0030.json": "e0060267795608a748921304f856fd2a4e8147de1c8fb2b03a4b2f58adbc94d2",
         "synthetic_5g_v14_0031.json": "fc0e66ee7dacfa4516fed4a4c7812579a74323aaecac993a6863b4bb29cc37b2",
         "synthetic_5g_v14_0032.json": "3f7183157bf402a35dad3505d0f56bba4c786570bcc45ab63fff9af5e62944bd",
         "synthetic_5g_v14_0033.json": "9bd1da6c2bdb132d7ace4e442b11b2298c2c4667e2ee20f280319a972b792780",
         "synthetic_5g_v14_0034.json": "7e2730126a82f995b1888465768e2bdf400ca24760264f728b250f6c2d172d48",
         "synthetic_5g_v14_0036.json": "909fe45c1bd079aaedca9fc0b809200f56f27ccf474dbddc449bcd2b2dfd56aa",
-        "synthetic_5g_v14_0037.json": "958ab6832626569be074b768204a19927083a47c6aa0d1724bce2cabe5fbe227",
         "synthetic_5g_v14_0038.json": "6e578b09ec1d69ae29241e2f756d39199a6c9ccea4bc3eee806ebc0ab2c473e2",
+        "synthetic_5g_v14_0039.json": "650d2a50036057b3cd08e502084083955316d5ab04dda9ee003df96ef763b979",
+        "synthetic_5g_v14_0045.json": "9c81c06b6f5a612ffb402c1afa660e8085479182cbd71db8d71d07244d69249a",
+        "synthetic_5g_v14_0046.json": "9b54af94fe9fc386242b4538980f3c774d2243136fac041cccda4e56222c7930"
+      }
+    },
+    {
+      "logical_name": "split_5g_harsh_val",
+      "relpath": "results/tube_v2/splits/5g_harsh_val",
+      "generator": {
+        "seed": 2027,
+        "fractions": {
+          "calib": 0.4,
+          "val": 0.2,
+          "test": 0.4
+        }
+      },
+      "files": {
+        "synthetic_5g_v14_0001.json": "ad10c253db8496def0cc167898e2484254aad4fc06e280717e05f6f32fb437ae",
+        "synthetic_5g_v14_0002.json": "e3871db0283d7d322ba967efda7d20eafa1f7c69e93f48bc2d3ba84fa7086f87",
+        "synthetic_5g_v14_0006.json": "1c715ea01e35b60773e169b6effa57b58ef0f843211c8497e1f37ae3b0e4798d",
+        "synthetic_5g_v14_0015.json": "18e0769d2764e5ab8daf3549ff4d7b657cc92844e59edb4a34b2a61aea3b5b24",
+        "synthetic_5g_v14_0018.json": "0e3c30c2c64ca3148f9cf2b46cbdf3e17d9b10afd78b047c49b42583647ad4ab",
+        "synthetic_5g_v14_0023.json": "29c45e45aaa374d9315b182f0534fe1e6ac20800c19b0184c0b890961c81c640",
+        "synthetic_5g_v14_0024.json": "5186cb71ea20df382147780e20937c44c01dacac2a4babf4d701e64f2fe1f2da",
+        "synthetic_5g_v14_0035.json": "561ce58138f46b3bce737f7d30303a33ef41671be8bcf21dd6d87a32db0e3681",
+        "synthetic_5g_v14_0037.json": "958ab6832626569be074b768204a19927083a47c6aa0d1724bce2cabe5fbe227",
+        "synthetic_5g_v14_0042.json": "701f8019d0a61c68b4781cdf7a8b813b54fc0a74800a384d814ffa991cd2851f"
+      }
+    },
+    {
+      "logical_name": "split_5g_harsh_test",
+      "relpath": "results/tube_v2/splits/5g_harsh_test",
+      "generator": {
+        "seed": 2027,
+        "fractions": {
+          "calib": 0.4,
+          "val": 0.2,
+          "test": 0.4
+        }
+      },
+      "files": {
+        "synthetic_5g_v14_0003.json": "06e3e176a10a4a09e1fb6eb212687eaff70ce960605e64e7703ec906772b8fd0",
+        "synthetic_5g_v14_0004.json": "087bf078e9c16273a7f3f9926ad06a04998a1dbfbd4f3da07e6c99f63a5f248c",
+        "synthetic_5g_v14_0005.json": "76687e53017493792273676756256486ab93750add65e452d0dc3236d475d5ae",
+        "synthetic_5g_v14_0009.json": "6c76f7f839f42960ad2d22bc54f3defad6abb311f5513511fe8c4f16d4cfad96",
+        "synthetic_5g_v14_0013.json": "adf466b50e736b71cecae0160a8090566e43771e68496893bc7d02ad578423d4",
+        "synthetic_5g_v14_0014.json": "ef0306d8172f90768480cdfab88184649a5246c84c92e5ee79ec4a20d1994d4a",
+        "synthetic_5g_v14_0016.json": "f81471d08ae8dacce7f974e9b09d3858b621f790547d53997720853b9092a727",
+        "synthetic_5g_v14_0017.json": "db7f7f0b02c0c7ba80b48398bc21fea64162dc3483044326a0737a9bdecc3053",
+        "synthetic_5g_v14_0019.json": "7c23b90d52561eedf48bf0f4d14790f3796f3446a94f52c546a2faf450112989",
+        "synthetic_5g_v14_0022.json": "12eb292b980c3c0fe3cabcf2230cb5a624861759655e755ab86b883b2ec70bb6",
+        "synthetic_5g_v14_0025.json": "da49d0f9f01ab35238641161ae109ebfd82599c7ccd9fef6533424efb319a14e",
+        "synthetic_5g_v14_0027.json": "4212193f710dd4aefcecd1f53836c36fb250d698fb3038a6302b1aa6c7d3fc9e",
+        "synthetic_5g_v14_0028.json": "b9eb9957d5a9e48efa57805ce088c52738d3c7f8727532a9448efc0bb5450b4b",
         "synthetic_5g_v14_0040.json": "6619582b0780b3549a60d02733bff2e1b0c6979fa8e6ef6d27d39ef45c87df0a",
         "synthetic_5g_v14_0041.json": "71802f36c1fed192a1cddadf371aac4a21599d56ace715089daa84f4ac99db85",
+        "synthetic_5g_v14_0043.json": "0f77fca3497a9985c1b11c5ac266b616f5ecda5b4ce0d7b65dfa67bfd786a970",
         "synthetic_5g_v14_0044.json": "739cb9e52c997dc1fec02e90cd0c0ba10b44630912959064903fe8253f67f6f2",
-        "synthetic_5g_v14_0046.json": "9b54af94fe9fc386242b4538980f3c774d2243136fac041cccda4e56222c7930",
-        "synthetic_5g_v14_0047.json": "7d246dbf61b148db40ace5a2782e59fa0e1bc733a25ed7595d327495ca107519"
+        "synthetic_5g_v14_0047.json": "7d246dbf61b148db40ace5a2782e59fa0e1bc733a25ed7595d327495ca107519",
+        "synthetic_5g_v14_0048.json": "36aa1f130dbc8bc8f4bd752460be11808a5f3aaf0c8476983168685236ea300a",
+        "synthetic_5g_v14_0049.json": "80be4bac3ea43f4dba197f46d88261ca2e55da3efc42230ba16b1eb591e8e118"
       }
     }
   ]

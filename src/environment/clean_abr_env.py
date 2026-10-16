@@ -122,6 +122,7 @@ class CleanABREnv(gym.Env):
     def _load_traces(self):
         trace_files = sorted(self.trace_dir.glob("*.json"))
         loaded = []
+        filenames: list[str] = []
         for f in trace_files:
             if f.name.startswith("trace_stats"):
                 continue
@@ -129,9 +130,15 @@ class CleanABREnv(gym.Env):
                 j = json.loads(f.read_text(encoding="utf-8"))
                 if "throughput_kbps" in j:
                     loaded.append(j)
+                    filenames.append(f.name)
             except (json.JSONDecodeError, OSError):
                 continue
-        self.traces = loaded if loaded else [{"throughput_kbps": [2000.0] * 1000}]
+        if loaded:
+            self.traces = loaded
+            self.trace_filenames = filenames
+        else:
+            self.traces = [{"throughput_kbps": [2000.0] * 1000}]
+            self.trace_filenames = ["synthetic_fallback.json"]
 
     def _tp_at_wall(self, t: float) -> float:
         trace_tp = self.current_trace["throughput_kbps"]
@@ -356,6 +363,7 @@ class CleanABREnv(gym.Env):
 
         self.current_trace_idx = int(self.np_random.integers(0, len(self.traces)))
         self.current_trace = self.traces[self.current_trace_idx]
+        self.current_trace_file = self.trace_filenames[self.current_trace_idx]
 
         self.chunk_idx = 0
         self.wall_time = 0.0
