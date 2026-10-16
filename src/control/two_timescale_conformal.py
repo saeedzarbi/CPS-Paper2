@@ -97,6 +97,21 @@ TUBE_V2_ARMS: tuple[TubeV2Arm, ...] = (
 )
 
 
+def parse_tube_v3_arm(arm: str) -> dict | None:
+    """Tube-v3 arms: tube_v2_step_split[_aX], tube_v2_step_static_aX, tube_v2_maxscore_aX."""
+    name = str(arm)
+    alpha = None
+    m = __import__("re").fullmatch(r"(tube_v2_(?:step_split|step_static|maxscore))(?:_a(\d*\.?\d+))?", name)
+    if not m:
+        return None
+    base, a = m.group(1), m.group(2)
+    if base == "tube_v2_step_static" and a is None:
+        return None  # legacy arm handled by parse_tube_v2_arm (unchanged)
+    alpha = float(a) if a is not None else None
+    kind = {"tube_v2_step_split": "split", "tube_v2_step_static": "static", "tube_v2_maxscore": "maxscore"}[base]
+    return {"kind": kind, "alpha": alpha}
+
+
 def parse_tube_v2_arm(arm: str) -> tuple[TubeMode, bool, bool] | None:
     """Return (mode, use_aci, capped) or None if not a tube_v2 arm name."""
     if not arm.startswith("tube_v2_"):
@@ -451,6 +466,8 @@ class TubeV2ConformalPolicy:
         mode: TubeMode = "per_step",
         use_aci: bool = False,
         capped: bool = True,
+        split_objective: bool = False,
+        tube_kind: str = "v2",
     ):
         self.env = env
         self.base = base_policy
@@ -474,6 +491,8 @@ class TubeV2ConformalPolicy:
                 safety_margin=eff,
                 tube=tube_cfg,
                 pruning="monotone",
+                split_objective=split_objective,
+                tube_kind=tube_kind,
             ),
         )
 
@@ -590,6 +609,25 @@ def make_controlled_policy(
 
     if arm == "tube_conformal":
         return TubeConformalPolicy(env, base_policy, cfg, use_aci=True)
+
+    v3 = parse_tube_v3_arm(str(arm))
+    if v3 is not None:
+        from dataclasses import replace as _dc_replace
+
+        cfg3 = _dc_replace(cfg, alpha=v3["alpha"]) if v3["alpha"] is not None else cfg
+        pol = TubeV2ConformalPolicy(
+            env,
+            base_policy,
+            cfg3,
+            mode="per_step",
+            use_aci=False,
+            capped=True,
+            split_objective=(v3["kind"] == "split"),
+            tube_kind=("maxscore" if v3["kind"] == "maxscore" else "v2"),
+        )
+        if trace_set_key:
+            _warm_start_tube_v2(pol, trace_set_key)
+        return pol
 
     parsed = parse_tube_v2_arm(str(arm))
     if parsed is not None:

@@ -22,6 +22,8 @@ class TubeV2MPCConfig:
     smooth_weight: float = 1.0
     pruning: PruningMode = "none"
     beam_width: int = 64
+    split_objective: bool = False
+    tube_kind: str = "v2"
     tube: ConformalTubeV2Config = field(default_factory=ConformalTubeV2Config)
 
     def __post_init__(self) -> None:
@@ -35,7 +37,12 @@ class TubeV2MPCPolicy:
         self.env = env
         self.cfg = cfg or TubeV2MPCConfig()
         self.n = len(env.BITRATE_LEVELS)
-        self.tube = ConformalThroughputTubeV2(self.cfg.tube)
+        if self.cfg.tube_kind == "maxscore":
+            from src.training.conformal_tube_v3 import MaxScoreConformalTube
+
+            self.tube = MaxScoreConformalTube(self.cfg.tube)
+        else:
+            self.tube = ConformalThroughputTubeV2(self.cfg.tube)
         br = np.asarray(env.BITRATE_LEVELS, dtype=float)
         self.log_u = np.log(np.maximum(br / max(br[0], 1e-6), 1e-6))
         self._seq_cache: dict[int, np.ndarray] = {}
@@ -136,8 +143,18 @@ class TubeV2MPCPolicy:
         margin = float(self.cfg.safety_margin)
         safe = np.ones(n_seq, dtype=bool)
 
+        if self.cfg.split_objective:
+            # Objective (rebuffer penalty) uses the point forecast; the safety
+            # constraint (buffer >= margin) uses the conformal lower bound.
+            hat = float(self.tube.predict_point_kbps())
+            tp_point = np.maximum(np.full(h, hat if hat > 0 else 0.0), tp_tube)
+            dl_obj = sizes[np.arange(h)[None, :], seqs] / (tp_point[np.arange(h)] * 1000.0 + 1e-6)
+        else:
+            dl_obj = dl
+        buf_obj = buf.copy()
         for j in range(h):
-            reb = np.maximum(0.0, dl[:, j] - buf)
+            reb = np.maximum(0.0, dl_obj[:, j] - buf_obj)
+            buf_obj = np.minimum(np.maximum(0.0, buf_obj - dl_obj[:, j]) + p, b_max)
             buf = np.minimum(np.maximum(0.0, buf - dl[:, j]) + p, b_max)
             safe &= buf >= margin
             aj = seqs[:, j]
