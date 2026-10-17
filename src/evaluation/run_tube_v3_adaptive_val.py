@@ -49,6 +49,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--trace-sets", nargs="+", default=["5g_markov", "5g_harsh", "bb", "5g_irish"])
     ap.add_argument("--episodes", type=int, default=100)
+    ap.add_argument(
+        "--fs-calib-mode",
+        default="env_chunks",
+        choices=("raw_samples", "env_chunks", "fixed_window"),
+        help="_fs warm-start calibration (default env_chunks for bb fix)",
+    )
     args = ap.parse_args()
     verify_or_exit()
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -68,7 +74,10 @@ def main() -> int:
                 continue
             done = _episodes_done(path) if path.is_file() else set()
             t0 = time.time()
-            cfg = ControlArmConfig(aci_gamma=float(gamma if gamma is not None else 0.005))
+            cfg = ControlArmConfig(
+                aci_gamma=float(gamma if gamma is not None else 0.005),
+                fs_calib_mode=str(args.fs_calib_mode),
+            )
             env = build_env(trace_dir, arm)
             base = make_policy("bba", env, None, False)
             pol = make_controlled_policy(env, arm, base, cfg, trace_set_key=ts)

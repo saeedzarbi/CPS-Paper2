@@ -148,6 +148,8 @@ class ControlArmConfig:
     cold_start_chunks: int = 20
     upward_smooth_weight: float = 2.0
     aci_gamma: float = 0.005
+    # _fs warm-start: raw trace ticks (legacy) vs chunk effective_tp via CleanABREnv replay.
+    fs_calib_mode: str = "raw_samples"
 
     def effective_safety_margin(self) -> float:
         """Buffer reserve for tube arms; H=1 static uses full margin (horizon sweep baseline)."""
@@ -574,14 +576,19 @@ def _wrap_projector(base_policy, proj):
     return _Wrapped()
 
 
-def _warm_start_tube_v2(policy: TubeV2ConformalPolicy, trace_set_key: str) -> None:
+def _warm_start_tube_v2(
+    policy: TubeV2ConformalPolicy,
+    trace_set_key: str,
+    *,
+    fs_calib_mode: str = "raw_samples",
+) -> None:
     from configs.trace_sets_v2 import calibration_dirs_for_eval
     from src.training.tube_v2_calib import replay_throughputs_on_tube
 
     variant = "native" if trace_set_key == "5g_harsh" else "default"
     dirs = calibration_dirs_for_eval(trace_set_key, variant=variant)
     tube = policy.tube_mpc.tube
-    replay_throughputs_on_tube(tube, dirs)
+    replay_throughputs_on_tube(tube, dirs, fs_calib_mode=fs_calib_mode)
     if tube.cfg.freeze_scales:
         tube.finalize_frozen_calibration()
 
@@ -640,7 +647,7 @@ def make_controlled_policy(
             freeze_scales=v3["freeze"],
         )
         if trace_set_key:
-            _warm_start_tube_v2(pol, trace_set_key)
+            _warm_start_tube_v2(pol, trace_set_key, fs_calib_mode=cfg.fs_calib_mode)
         return pol
 
     parsed = parse_tube_v2_arm(str(arm))
@@ -655,7 +662,7 @@ def make_controlled_policy(
             capped=capped,
         )
         if trace_set_key:
-            _warm_start_tube_v2(pol, trace_set_key)
+            _warm_start_tube_v2(pol, trace_set_key, fs_calib_mode=cfg.fs_calib_mode)
         return pol
 
     if arm == "robust_mpc_logu":

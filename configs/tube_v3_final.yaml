@@ -4,6 +4,7 @@ code_commit: dd6765a   # horizon-aligned Tube-v3 code (no algorithm changes afte
 manifest_file: configs/trace_manifests/canonical_traces.json
 manifest_sha256: 0cd91b577f7258c90630b3d53f0d401282edeb42ad89e0096072b4c794b690a2
 split: test
+fs_calib_mode: raw_samples   # legacy _fs calibration (reproducibility of frozen test)
 episodes_per_arm: 100
 host: bba
 master_seed: 42

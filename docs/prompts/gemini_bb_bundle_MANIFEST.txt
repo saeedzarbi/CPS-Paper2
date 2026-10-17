@@ -1,0 +1,34 @@
+Files included in gemini_bb_fs_calibration_bundle.zip (paths relative to repo root)
+
+PROMPT
+  docs/prompts/gemini_bb_fs_calibration_fix.md   <- paste this as the user message
+  docs/prompts/gemini_bb_bundle_MANIFEST.txt
+
+REPORTS / LIMITATIONS
+  docs/LIMITATIONS.md
+  docs/reports/tube_v3_adaptive_test.md
+  docs/reports/tube_v3_adaptive_tables.md
+  docs/reports/tube_v3_adaptive_val_alpha_selection.json
+
+CONFIG / PROTOCOL
+  configs/tube_v3_adaptive_final.yaml
+  configs/tube_v3_alpha_rule.yaml
+  configs/tube_v3_final.yaml
+  configs/trace_sets_v2.py
+
+THEORY
+  docs/theory/tube_mpc_theory.tex
+  docs/GEMINI_CONTEXT.md
+
+CORE CODE
+  src/training/conformal_tube_v3.py
+  src/training/conformal_tube_v2.py
+  src/training/tube_v2_calib.py
+  src/training/tube_mpc_policy_v2.py
+  src/control/two_timescale_conformal.py
+  src/environment/clean_abr_env.py
+  src/evaluation/select_alpha_rule.py
+
+NOT INCLUDED (on server / too large)
+  Trace JSONs under paths resolved by configs/trace_sets_v2.py
+  configs/trace_manifests/canonical_traces.json (optional: add locally if needed)

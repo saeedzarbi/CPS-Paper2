@@ -76,7 +76,10 @@ def main() -> int:
                 continue
             done = _episodes_done(path) if path.is_file() else set()
             t0 = time.time()
-            ccfg = ControlArmConfig(aci_gamma=gamma if gamma is not None else 0.005)
+            ccfg = ControlArmConfig(
+                aci_gamma=gamma if gamma is not None else 0.005,
+                fs_calib_mode=str(cfg.get("fs_calib_mode", "raw_samples")),
+            )
             env = build_env(trace_dir, arm)
             base = make_policy(cfg["host"], env, None, False)
             pol = make_controlled_policy(env, arm, base, ccfg, trace_set_key=ts)

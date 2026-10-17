@@ -121,6 +121,10 @@ class ConformalThroughputTubeV2:
         self._frozen_n = len(sc[0])
         self._frozen = True
 
+    def begin_calibration_trace(self) -> None:
+        """Start a new calibration trace: clear forecaster history only (keep score / _fs buffers)."""
+        self._obs.clear()
+
     def reset_episode_state(self) -> None:
         """Clear per-episode bookkeeping; keep score buffers and ACI state."""
         if not getattr(self, "_frozen", True):
