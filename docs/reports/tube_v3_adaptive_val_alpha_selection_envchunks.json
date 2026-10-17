@@ -1,0 +1,625 @@
+{
+  "rule_file": "configs/tube_v3_alpha_rule.yaml",
+  "variants": {
+    "maxscore_safe_fs": {
+      "per_family": {
+        "5g_markov": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe_fs",
+              "qoe": 1.9843333189853993,
+              "rebuf": 1.6773403427638491,
+              "p90_rebuf": 5.18837240785964,
+              "dp90": -16.800000000000292,
+              "U": -4.753603807153248,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe_fs",
+              "qoe": 3.1320340443343206,
+              "rebuf": 2.1448403427638643,
+              "p90_rebuf": 7.463743756866817,
+              "dp90": -14.524628650993114,
+              "U": -4.753603807153248,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe_fs",
+              "qoe": 1.9539851202986318,
+              "rebuf": 3.4043403427638683,
+              "p90_rebuf": 9.179644454313152,
+              "dp90": -12.808727953546779,
+              "U": -4.0991626954746305,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.15,
+          "flag": ""
+        },
+        "5g_harsh": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe_fs",
+              "qoe": 48.87562135834341,
+              "rebuf": 0.4440000000000084,
+              "p90_rebuf": 0.0,
+              "dp90": -8.48944953904336,
+              "U": -3.3684800960464614,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe_fs",
+              "qoe": 62.089100170910655,
+              "rebuf": 0.6150000000000094,
+              "p90_rebuf": 0.6250000000000508,
+              "dp90": -7.864449539043309,
+              "U": -3.1964347609245287,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe_fs",
+              "qoe": 72.59997784116733,
+              "rebuf": 0.8575000000000125,
+              "p90_rebuf": 2.185000000000013,
+              "dp90": -6.304449539043347,
+              "U": -0.8075672744522109,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.2,
+          "flag": ""
+        },
+        "bb": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe_fs",
+              "qoe": 40.97280260122303,
+              "rebuf": 1.2151378094204193,
+              "p90_rebuf": 3.512308774094104,
+              "dp90": -1.243080117200782,
+              "U": -0.004046266491615354,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe_fs",
+              "qoe": 43.302258808538255,
+              "rebuf": 1.3951378094204239,
+              "p90_rebuf": 4.373599458594325,
+              "dp90": -0.3817894327005611,
+              "U": 0.0787529798556239,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe_fs",
+              "qoe": 44.7270536075058,
+              "rebuf": 1.4846378094204231,
+              "p90_rebuf": 4.373599458594325,
+              "dp90": -0.3817894327005611,
+              "U": 0.09060146285422878,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.2,
+          "flag": ""
+        },
+        "5g_irish": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe_fs",
+              "qoe": -19.08315843261894,
+              "rebuf": 5.206208961659451,
+              "p90_rebuf": 8.498521146127253,
+              "dp90": -111.07298597696979,
+              "U": -87.86793485367389,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe_fs",
+              "qoe": -24.235743026191358,
+              "rebuf": 6.488708961659472,
+              "p90_rebuf": 13.256224068198804,
+              "dp90": -106.31528305489825,
+              "U": -83.26937245712894,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe_fs",
+              "qoe": -102.42446943029132,
+              "rebuf": 37.11520896165922,
+              "p90_rebuf": 87.10589493301265,
+              "dp90": -32.4656121900844,
+              "U": -23.636020917618033,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        }
+      },
+      "global_alpha": 0.15,
+      "global_flag": "",
+      "macro_qoe": {
+        "0.1": 18.187399711483224,
+        "0.15": 21.071912499397968,
+        "0.2": 4.2141367846701066
+      }
+    },
+    "step_static_safe_fs": {
+      "per_family": {
+        "5g_markov": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe_fs",
+              "qoe": -0.776653880306775,
+              "rebuf": 6.10434034276389,
+              "p90_rebuf": 19.792702145110763,
+              "dp90": -2.195670262749168,
+              "U": 1.9217201147721266,
+              "admissible": false
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe_fs",
+              "qoe": -4.0403636324738015,
+              "rebuf": 9.085847173754047,
+              "p90_rebuf": 26.557460282882637,
+              "dp90": 4.569087875022706,
+              "U": 6.9226695078346765,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe_fs",
+              "qoe": -0.33925595031285105,
+              "rebuf": 9.538847386479443,
+              "p90_rebuf": 28.420416533318207,
+              "dp90": 6.432044125458276,
+              "U": 8.46600783844179,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": "no admissible"
+        },
+        "5g_harsh": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe_fs",
+              "qoe": 78.58557484616149,
+              "rebuf": 1.2500000000000193,
+              "p90_rebuf": 4.760000000000104,
+              "dp90": -3.729449539043256,
+              "U": 0.35329507366940227,
+              "admissible": false
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe_fs",
+              "qoe": 80.04785723679746,
+              "rebuf": 2.2910000000000372,
+              "p90_rebuf": 12.30000000000021,
+              "dp90": 3.8105504609568506,
+              "U": 4.162203024262069,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe_fs",
+              "qoe": 80.17324494157498,
+              "rebuf": 2.892500000000053,
+              "p90_rebuf": 12.550000000000214,
+              "dp90": 4.060550460956854,
+              "U": 4.3053050328541875,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": "no admissible"
+        },
+        "bb": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe_fs",
+              "qoe": 43.81727973064545,
+              "rebuf": 1.668137809420425,
+              "p90_rebuf": 4.391303198202091,
+              "dp90": -0.3640856930927949,
+              "U": 0.0,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe_fs",
+              "qoe": 45.651026950993476,
+              "rebuf": 1.7171378094204224,
+              "p90_rebuf": 4.373599458594325,
+              "dp90": -0.3817894327005611,
+              "U": 0.19508300193670375,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe_fs",
+              "qoe": 45.58813385531977,
+              "rebuf": 1.9555996937041187,
+              "p90_rebuf": 5.154945602559616,
+              "dp90": 0.39955671126473025,
+              "U": 2.0368831213984206,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.15,
+          "flag": ""
+        },
+        "5g_irish": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe_fs",
+              "qoe": -129.23225972047408,
+              "rebuf": 45.30220896165925,
+              "p90_rebuf": 102.29874312025105,
+              "dp90": -17.272764002846003,
+              "U": -1.4101578542754396,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe_fs",
+              "qoe": -147.43037903161158,
+              "rebuf": 50.89920896165923,
+              "p90_rebuf": 110.03835626240073,
+              "dp90": -9.533150860696324,
+              "U": 1.5059709295475814,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe_fs",
+              "qoe": -160.1975009867683,
+              "rebuf": 54.76570896165919,
+              "p90_rebuf": 130.72419770191186,
+              "dp90": 11.152690578814813,
+              "U": 28.61003553961004,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        }
+      },
+      "global_alpha": 0.1,
+      "global_flag": "no alpha admissible in every family",
+      "macro_qoe": {
+        "0.1": -1.9015147559934782,
+        "0.15": -6.442964619073614,
+        "0.2": -8.693844535046598
+      }
+    },
+    "maxscore_safe": {
+      "per_family": {
+        "5g_markov": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe",
+              "qoe": -3.489432221412727,
+              "rebuf": 2.8768403427638702,
+              "p90_rebuf": 8.925192896219881,
+              "dp90": -13.06317951164005,
+              "U": -4.475226563178156,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe",
+              "qoe": -4.299497831344946,
+              "rebuf": 3.792340342763877,
+              "p90_rebuf": 12.301731151033147,
+              "dp90": -9.686641256826784,
+              "U": -3.6694906754671863,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe",
+              "qoe": -3.929092631731503,
+              "rebuf": 5.170484666813968,
+              "p90_rebuf": 18.030365897844376,
+              "dp90": -3.9580065100155544,
+              "U": -1.2495429592778002,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        },
+        "5g_harsh": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe",
+              "qoe": 51.77127319876746,
+              "rebuf": 0.62100000000001,
+              "p90_rebuf": 1.3599999999999501,
+              "dp90": -7.12944953904341,
+              "U": -2.1776697140281236,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe",
+              "qoe": 58.23647450907536,
+              "rebuf": 0.6585000000000102,
+              "p90_rebuf": 1.3050000000000546,
+              "dp90": -7.184449539043305,
+              "U": -2.2684800960464457,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe",
+              "qoe": 66.70854018958768,
+              "rebuf": 0.9470000000000149,
+              "p90_rebuf": 3.950000000000122,
+              "dp90": -4.539449539043238,
+              "U": -1.8609636186876644,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.2,
+          "flag": ""
+        },
+        "bb": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe",
+              "qoe": 33.85883311436899,
+              "rebuf": 1.1871378094204201,
+              "p90_rebuf": 3.5573087740941376,
+              "dp90": -1.1980801172007483,
+              "U": -0.004046266491615354,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe",
+              "qoe": 37.741480246333325,
+              "rebuf": 1.3961378094204224,
+              "p90_rebuf": 4.074363707647689,
+              "dp90": -0.681025183647197,
+              "U": 0.0,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe",
+              "qoe": 37.91399451087455,
+              "rebuf": 1.4266378094204202,
+              "p90_rebuf": 4.373599458594325,
+              "dp90": -0.3817894327005611,
+              "U": 0.3981248073440467,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.15,
+          "flag": ""
+        },
+        "5g_irish": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_maxscore_a0.1_safe",
+              "qoe": -50.12001783215572,
+              "rebuf": 18.55520896165938,
+              "p90_rebuf": 54.45783245437954,
+              "dp90": -65.11367466871751,
+              "U": -48.14691141140617,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_maxscore_a0.15_safe",
+              "qoe": -67.74004023648992,
+              "rebuf": 24.590708961659374,
+              "p90_rebuf": 82.90964612689265,
+              "dp90": -36.661860996204396,
+              "U": -24.382563872866996,
+              "admissible": true
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_maxscore_a0.2_safe",
+              "qoe": -76.4483390462103,
+              "rebuf": 27.276708961659345,
+              "p90_rebuf": 83.28783245437936,
+              "dp90": -36.283674668717694,
+              "U": -24.860789128689163,
+              "admissible": true
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        }
+      },
+      "global_alpha": 0.1,
+      "global_flag": "",
+      "macro_qoe": {
+        "0.1": 8.005164064892002,
+        "0.15": 5.984604171893455,
+        "0.2": 6.06127575563011
+      }
+    },
+    "step_static_safe": {
+      "per_family": {
+        "5g_markov": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe",
+              "qoe": -4.860382974972041,
+              "rebuf": 7.824984666813997,
+              "p90_rebuf": 22.09038870350799,
+              "dp90": 0.1020162956480597,
+              "U": 5.095684123543236,
+              "admissible": false
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe",
+              "qoe": 0.6847117729738469,
+              "rebuf": 8.295847386479444,
+              "p90_rebuf": 22.54267333095847,
+              "dp90": 0.5543009230985376,
+              "U": 5.012291017596326,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe",
+              "qoe": -7.714867593848537,
+              "rebuf": 11.856167735678065,
+              "p90_rebuf": 32.54626284063324,
+              "dp90": 10.55789043277331,
+              "U": 14.399999999999125,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.15,
+          "flag": "no admissible"
+        },
+        "5g_harsh": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe",
+              "qoe": 75.46265110990963,
+              "rebuf": 1.22850000000002,
+              "p90_rebuf": 4.760000000000104,
+              "dp90": -3.729449539043256,
+              "U": 0.023724869135133275,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe",
+              "qoe": 79.85834672874638,
+              "rebuf": 2.1140000000000367,
+              "p90_rebuf": 8.340000000000096,
+              "dp90": -0.14944953904326397,
+              "U": 3.515936291503408,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe",
+              "qoe": 80.0333170428681,
+              "rebuf": 2.685000000000045,
+              "p90_rebuf": 9.695000000000164,
+              "dp90": 1.205550460956804,
+              "U": 4.045755301468038,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        },
+        "bb": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe",
+              "qoe": 43.761299129119436,
+              "rebuf": 1.4991378094204257,
+              "p90_rebuf": 4.373599458594325,
+              "dp90": -0.3817894327005611,
+              "U": 0.0,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe",
+              "qoe": 45.17871928343945,
+              "rebuf": 1.6561378094204195,
+              "p90_rebuf": 4.391303198202091,
+              "dp90": -0.3640856930927949,
+              "U": 0.4658256177169302,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe",
+              "qoe": 46.7817108535802,
+              "rebuf": 1.6341378094204169,
+              "p90_rebuf": 5.002160868166408,
+              "dp90": 0.2467719768715222,
+              "U": 1.2176780095705784,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        },
+        "5g_irish": {
+          "candidates": [
+            {
+              "alpha": 0.1,
+              "arm": "tube_v2_step_static_a0.1_safe",
+              "qoe": -127.84864308349583,
+              "rebuf": 44.56720896165926,
+              "p90_rebuf": 104.80171152087215,
+              "dp90": -14.769795602224903,
+              "U": -1.0656421076652876,
+              "admissible": true
+            },
+            {
+              "alpha": 0.15,
+              "arm": "tube_v2_step_static_a0.15_safe",
+              "qoe": -149.90197272172773,
+              "rebuf": 51.17970896165922,
+              "p90_rebuf": 111.06287941063655,
+              "dp90": -8.508627712460495,
+              "U": 2.463382718622649,
+              "admissible": false
+            },
+            {
+              "alpha": 0.2,
+              "arm": "tube_v2_step_static_a0.2_safe",
+              "qoe": -160.0855394306743,
+              "rebuf": 54.64170896165925,
+              "p90_rebuf": 125.23104441031602,
+              "dp90": 5.659537287218967,
+              "U": 23.538581484884133,
+              "admissible": false
+            }
+          ],
+          "chosen_alpha": 0.1,
+          "flag": ""
+        }
+      },
+      "global_alpha": 0.15,
+      "global_flag": "no alpha admissible in every family",
+      "macro_qoe": {
+        "0.1": -3.3712689548597012,
+        "0.15": -6.045048734142014,
+        "0.2": -10.246344782018632
+      }
+    }
+  }
+}

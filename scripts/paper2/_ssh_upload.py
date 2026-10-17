@@ -45,7 +45,9 @@ def main() -> int:
                     sftp.stat(cur)
                 except OSError:
                     sftp.mkdir(cur)
-        sftp.put(str(local), remote)
+        data = local.read_bytes().replace(b"\r\n", b"\n")
+        with sftp.open(remote, "wb") as rf:
+            rf.write(data)
         print("uploaded", rel)
     sftp.close()
     client.close()

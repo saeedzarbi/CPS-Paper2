@@ -1,16 +1,54 @@
-"""Tables + figures for the Tube-v3 ADAPTIVE frozen test (configs/tube_v3_adaptive_final.yaml).
+"""Tables + figures for the Tube-v3 ADAPTIVE frozen test.
 
-usage: python analyze_tube_v3_adaptive.py <adaptive_test_dir> <prev_final_test_dir> <fig_dir> <out_md>
+usage: python analyze_tube_v3_adaptive.py <adaptive_test_dir> <prev_final_test_dir> <fig_dir> <out_md> [freeze_yaml]
 """
 import glob, os, sys
+from pathlib import Path
+
 import numpy as np, pandas as pd
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
 R, PREV, FIG, OUT = sys.argv[1:5]
+FREEZE_YAML = sys.argv[5] if len(sys.argv) > 5 else "configs/tube_v3_adaptive_final.yaml"
 os.makedirs(FIG, exist_ok=True)
 SETS = ["5g_markov", "5g_harsh", "bb", "5g_irish"]
-PRIMARY = {"5g_markov": "tube_v2_maxscore_a0.1_safe_fs", "5g_harsh": "tube_v2_maxscore_a0.2_safe_fs",
-           "bb": "tube_v2_maxscore_a0.15_safe_fs", "5g_irish": "tube_v2_maxscore_a0.1_safe_fs"}
+
+
+def _load_freeze_yaml(path: str) -> dict:
+    cfg: dict = {}
+    cur_list: str | None = None
+    root = Path(__file__).resolve().parents[2]
+    for raw in (root / path).read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if line.startswith("  - ") and cur_list is not None:
+            cfg[cur_list].append(line[4:].strip())
+            continue
+        cur_list = None
+        k, v = line.split(":", 1)
+        v = v.strip()
+        if v == "":
+            cur_list = k
+            cfg.setdefault(k, [])
+        elif v.startswith("["):
+            cfg[k] = [x.strip() for x in v.strip("[]").split(",") if x.strip()]
+        else:
+            cfg[k] = v
+    return cfg
+
+
+def _primary_arms(cfg: dict) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for ts in SETS:
+        arms = cfg.get(f"arms_{ts}") or []
+        if not arms:
+            raise KeyError(f"missing arms_{ts} in {FREEZE_YAML}")
+        out[ts] = str(arms[0]).split("#", 1)[0].strip()
+    return out
+
+
+PRIMARY = _primary_arms(_load_freeze_yaml(FREEZE_YAML))
 GLOBAL = "tube_v2_maxscore_a0.1_safe_fs"
 LEG = "tube_v2_step_static_a0.15"
 rng0 = lambda: np.random.default_rng(0)
@@ -66,7 +104,14 @@ for ts in SETS:
         if k in P and k in A:
             same = np.allclose(A[k].episodic_qoe.values, P[k].episodic_qoe.values)
             L.append(f"| `{k}` | {A[k].episodic_qoe.mean():.2f} | {P[k].episodic_qoe.mean():.2f} | {same} |")
-KT = ["\n## Key table (primary = rule-selected max-score `_safe_fs`) vs RobustMPC, test\n",
+_hdr = (
+    f"# Tube-v3 ADAPTIVE frozen TEST report\n\n"
+    f"- Results: `{R}`\n"
+    f"- Freeze config: `{FREEZE_YAML}`\n"
+    f"- Primary arms (first per `arms_<set>`): {PRIMARY}\n"
+    f"- Bootstrap: trace-cluster (4000), paired-episode for reference\n\n"
+)
+KT = [_hdr, "## Key table (primary = rule-selected max-score `_safe_fs`) vs RobustMPC, test\n",
       "| set | primary arm | QoE | rebuf (s) | joint cov | ΔQoE vs RobustMPC (cluster) | Δrebuf (cluster) |", "|---|---|---|---|---|---|---|"]
 for ts, k, a, r, row in KEY:
     KT.append(f"| {ts} | `{k}` | {a.episodic_qoe.mean():.1f} | {a.rebuffer_total.mean():.2f} | {a.joint_coverage_ep.mean():.3f} | {row[0]} | {row[2]} |")

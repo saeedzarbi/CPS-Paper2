@@ -1,0 +1,47 @@
+# Tube-v3 ADAPTIVE freeze #2: _fs calibrated with env_chunks (bb joint-coverage fix).
+# Alpha rule configs/tube_v3_alpha_rule.yaml on VAL results/tube_v3/adaptive_val (env_chunks warm-start).
+# Committed BEFORE any test-split run using this file. tube_v3_adaptive_final.yaml (raw _fs) untouched.
+code_commit: 199cf9a   # + env_chunks _fs calib patch on server (tube_v2_calib, fs_calib_mode)
+manifest_file: configs/trace_manifests/canonical_traces.json
+manifest_sha256: 0cd91b577f7258c90630b3d53f0d401282edeb42ad89e0096072b4c794b690a2
+alpha_rule: configs/tube_v3_alpha_rule.yaml
+alpha_selection: results/tube_v3/adaptive_val/alpha_selection_envchunks.json
+fs_calib_mode: env_chunks
+split: test
+episodes_per_arm: 100
+host: bba
+master_seed: 42
+trace_sets: [5g_markov, 5g_harsh, bb, 5g_irish]
+primary_variant: maxscore_safe_fs
+global_alpha_primary: 0.15
+arms_5g_markov:
+  - tube_v2_maxscore_a0.15_safe_fs
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_maxscore_a0.15_safe
+  - tube_v2_step_static_a0.1_safe
+arms_5g_harsh:
+  - tube_v2_maxscore_a0.2_safe_fs
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_maxscore_a0.2_safe
+  - tube_v2_step_static_a0.1_safe
+arms_bb:
+  - tube_v2_maxscore_a0.2_safe_fs
+  - tube_v2_step_static_a0.15_safe_fs
+  - tube_v2_maxscore_a0.1_safe
+  - tube_v2_step_static_a0.1_safe
+arms_5g_irish:
+  - tube_v2_maxscore_a0.1_safe_fs
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_maxscore_a0.1_safe
+  - tube_v2_step_static_a0.1_safe
+arms:
+  - tube_v2_maxscore_a0.15_safe_fs
+  - tube_v2_step_static_a0.1_safe_fs
+  - tube_v2_step_static_a0.15
+  - tube_v2_maxscore_a0.1
+  - robust_mpc_logu
+  - mpc_fixed_quantile_native
+  - mpc_fixed_rho_0.5
+  - mpc_fixed_rho_0.6
+  - mpc_fixed_rho_0.7
+  - raw
