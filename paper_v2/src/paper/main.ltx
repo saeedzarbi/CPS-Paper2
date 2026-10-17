@@ -1,0 +1,110 @@
+% !TEX program = pdflatex
+% !BIB program = bibtex
+% Paper 2: Tube-MPC + multi-step conformal tubes (Tube-v3).
+% Overleaf: upload this folder; set main document to main.ltx (or rename to main.tex).
+% Compile: pdflatex -> bibtex -> pdflatex x2  (requires elsarticle class from CTAN/Overleaf).
+
+\PassOptionsToPackage{numbers,sort&compress}{natbib}
+\documentclass[final,5p,times,twocolumn]{elsarticle}
+\biboptions{numbers,sort&compress}
+
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{microtype}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\usepackage{float}
+\usepackage{etoolbox}
+
+\setlength{\intextsep}{5pt plus 1pt minus 1pt}
+\setlength{\textfloatsep}{6pt plus 1pt minus 1pt}
+\raggedbottom
+
+\makeatletter
+\newenvironment{cps@table}{\begin{table}[!t]}{\end{table}}
+\makeatother
+
+\newcommand{\evalfig}[1]{\includegraphics[width=\linewidth]{#1}}
+\newcommand{\figref}[1]{Fig.~\ref{#1}}
+\newcommand{\tabref}[1]{Table~\ref{#1}}
+\newcommand{\tablebodyfont}{\footnotesize}
+\newcommand{\cici}[3]{\makecell[c]{#1\\[-1pt]\scriptsize\ensuremath{[#2,\,#3]}}}
+\newcommand{\evaltable}[1]{%
+  \begingroup\tablebodyfont
+  \renewcommand{\arraystretch}{1.15}%
+  \setlength{\tabcolsep}{3.5pt}%
+  #1%
+  \endgroup
+}
+\newcommand{\tablenote}[1]{\par\vspace{3pt}{\scriptsize\raggedright #1\par}}
+
+\makeatletter
+\def\input@path{{./}{tables/}{figures/}{sections/}}
+\makeatother
+
+\IfFileExists{tables/macros_tube_v3.tex}{\input{tables/macros_tube_v3}}{%
+  \typeout{[WARN] Missing tables/macros_tube_v3.tex}}
+
+\journal{Computer Networks}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Conformal Multi-Step Throughput Tubes for Certified Tube-{MPC} Adaptive Bitrate Streaming}
+
+\author[a]{Saeed Zarbi}
+\author[a]{Leili Farzinvash\corref{c1}}
+\ead{l.farzinvash@tabrizu.ac.ir}
+\author[a]{Pedram Salehpour}
+\cortext[c1]{Corresponding author.}
+
+\address[a]{Department of Computer Engineering, Faculty of Electrical and Computer Engineering, University of Tabriz, Tabriz, Iran}
+
+\begin{abstract}
+Adaptive Bitrate (ABR) controllers that plan several chunks ahead need uncertainty on future throughput, not only a point forecast.
+We propose \emph{Tube-{MPC}}: finite-horizon model predictive control over a \emph{conformal lower-bound tube} on the next \(H\) chunk throughputs.
+A max-score simultaneous conformal construction controls joint coverage across the horizon; a pre-refill safety constraint rejects bitrate plans that would rebuffer on the tube trajectory; frozen split calibration (\texttt{\_fs}) fits scales and a joint quantile on disjoint traces.
+Calibration replays chunk-level effective throughput through the same simulator used at test time, aligning offline scores with runtime observations.
+A pre-registered rule selects the miscoverage level \(\alpha\) per trace family on validation only.
+On a frozen test campaign (\TubeEpisodes\ episodes per arm), the primary tube arm improves QoE and reduces rebuffering versus RobustMPC on synthetic and real \mbox{5G} suites (e.g., Irish: \(\Delta\)QoE \cici{\TubeIrishDQoE}{\TubeIrishDQoELo}{\TubeIrishDQoEHi}, \(\Delta\)rebuffer \cici{\TubeIrishDRebuf}{\TubeIrishDRebufLo}{\TubeIrishDRebufHi}\,s) with empirical joint coverage near nominal levels.
+Broadband joint coverage improves after chunk-aligned calibration but can remain slightly below the target; we report this limitation explicitly.
+The executed action is capped by a one-step conformal projector, connecting this work to single-step certified shields.
+\end{abstract}
+
+\begin{keyword}
+Adaptive Bitrate Streaming\sep Model Predictive Control\sep Conformal Prediction\sep Multi-step uncertainty\sep Quality of Experience
+\end{keyword}
+
+\end{frontmatter}
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/system}
+\input{sections/method}
+\input{sections/theory}
+\input{sections/eval}
+\input{sections/conclusion}
+
+\section*{Data availability}
+Code, frozen configurations, and result tables are in the CPS-Paper2 repository (branch \texttt{tube-v3-val}).
+Headline numbers: \texttt{docs/reports/tube\_v3\_adaptive\_test\_envchunks.md}.
+
+\section*{Declaration of competing interest}
+The authors declare no competing interests.
+
+\clearpage
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
+
+\end{document}

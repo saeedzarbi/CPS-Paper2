@@ -1,0 +1,51 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Protocol}
+\label{sec:eval:protocol}
+
+We follow a frozen pipeline on branch \texttt{tube-v3-val}: code for \texttt{\_safe} and \texttt{\_fs}, pre-registered \(\alpha\) rule on validation (\texttt{configs/tube\_v3\_alpha\_rule.yaml}), freeze file \texttt{tube\_v3\_adaptive\_final\_envchunks.yaml}, and a single test run (\TubeEpisodes\ episodes per arm, master seed~\TubeMasterSeed, BBA host).
+Primary arms are max-score \texttt{\_safe\_fs} with per-family \(\alpha\) from validation under \texttt{env\_chunks} calibration.
+Confidence intervals use trace-cluster bootstrap (4000 resamples).
+
+\subsection{Main results vs.\ RobustMPC}
+\label{sec:eval:main}
+
+\tabref{tab:tube:primary} summarizes the rule-selected primary arm.
+On \mbox{5G} Markov and Irish traces, Tube-MPC substantially improves QoE and cuts rebuffering; joint coverage meets or exceeds \(1-\alpha\).
+On harsh \mbox{5G}, rebuffering improves with QoE statistically similar to RobustMPC; fixed-\(\rho\) MPC still achieves higher QoE at roughly threefold rebuffering (full tables in the repository report).
+On broadband, QoE gains are small and joint coverage (\TubeBBJoint) remains slightly below the nominal \(0.80\) for \(\alpha{=}0.20\), though chunk-aligned calibration raised joint coverage from \(0.646\) (raw-tick \texttt{\_fs}) to \TubeBBJoint; \(\alpha{=}0.15\) on the same test reaches \TubeBBJointA015.
+
+\begin{cps@table}[!t]
+\centering
+\caption{Primary tube arm (\texttt{maxscore\_safe\_fs}, env\_chunks calibration) vs.\ RobustMPC on the frozen test split. Cluster 95\% CI.}
+\label{tab:tube:primary}
+\evaltable{%
+\begin{tabular}{@{}lrrrc@{}}
+\toprule
+Trace set & QoE & Rebuf (s) & Joint cov. & $\Delta$QoE / $\Delta$rebuf (s) \\
+\midrule
+5g\_markov & \TubeMarkovQoE & \TubeMarkovRebuf & \TubeMarkovJoint &
+  \cici{\TubeMarkovDQoE}{\TubeMarkovDQoELo}{\TubeMarkovDQoEHi} /
+  \cici{\TubeMarkovDRebuf}{\TubeMarkovDRebufLo}{\TubeMarkovDRebufHi} \\
+5g\_harsh & \TubeHarshQoE & \TubeHarshRebuf & \TubeHarshJoint &
+  \cici{\TubeHarshDQoE}{\TubeHarshDQoELo}{\TubeHarshDQoEHi} /
+  \cici{\TubeHarshDRebuf}{\TubeHarshDRebufLo}{\TubeHarshDRebufHi} \\
+bb & \TubeBBQoE & \TubeBBRebuf & \TubeBBJoint &
+  \cici{\TubeBBDQoE}{\TubeBBDQoELo}{\TubeBBDQoEHi} /
+  \cici{\TubeBBDRebuf}{\TubeBBDRebufLo}{\TubeBBDRebufHi} \\
+5g\_irish & \TubeIrishQoE & \TubeIrishRebuf & \TubeIrishJoint &
+  \cici{\TubeIrishDQoE}{\TubeIrishDQoELo}{\TubeIrishDQoEHi} /
+  \cici{\TubeIrishDRebuf}{\TubeIrishDRebufLo}{\TubeIrishDRebufHi} \\
+\bottomrule
+\end{tabular}%
+}
+\tablenote{Nominal joint targets: Markov/Irish \(1-\alpha\) with rule-selected \(\alpha\); harsh \(0.80\); bb \(0.80\) at \(\alpha{=}0.20\).}
+\end{cps@table}
+
+\begin{figure}[!t]
+\centering
+\evalfig{figures/pareto_qoe_rebuffer.png}
+\caption{QoE vs.\ mean rebuffering on the frozen test split (placeholder path: copy from \texttt{docs/figures/tube\_v3\_adaptive\_envchunks/}).}
+\label{fig:tube:pareto}
+\end{figure}

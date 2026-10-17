@@ -1,0 +1,9 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented Tube-MPC with a max-score conformal throughput tube, pre-refill safe planning, and chunk-aligned frozen calibration.
+On \mbox{5G} test suites the method reduces rebuffering versus RobustMPC while improving QoE on Markov and real Irish traces, with empirical joint coverage near nominal levels.
+Broadband remains challenging: outage-heavy traces limit all controllers, and joint coverage requires aligned calibration and honest reporting when nominal targets are not met.
+
+\paragraph{Limitations.}
+Exchangeability and fixed-\(\sigma\) assumptions hold only approximately; the executed policy includes a one-step conformal cap; per-family \(\alpha\) is a validated hyperparameter; effective throughput depends weakly on the calibration reference policy.

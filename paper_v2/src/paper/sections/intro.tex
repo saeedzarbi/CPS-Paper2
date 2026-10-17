@@ -1,0 +1,30 @@
+\section{Introduction}
+\label{sec:intro}
+
+Client-side Adaptive Bitrate (ABR) controllers must balance video quality against rebuffering under volatile wireless throughput.
+Model Predictive Control (MPC) plans several chunks ahead using a point forecast of future capacity, but a single mean forecast hides tail risk: a conservative plan wastes quality, while an aggressive plan stalls playback when the link dips.
+
+Conformal prediction offers distribution-free uncertainty sets from exchangeable calibration scores~\cite{vovk2005algorithmic,angelopoulos2023gentle}.
+Recent ABR work applies one-step conformal shields or risk budgets~\cite{zhong2026conformalabr,liu2025safesabr}.
+\textbf{Paper~1} in this line introduced a one-step Certified Perceptual Shield (CPS) with a conformal throughput lower bound and VMAF-knee banking.
+\textbf{This paper} extends uncertainty to a \emph{multi-step tube}: at each decision we publish lower bounds on throughput for the next \(H\) chunks and plan a monotone bitrate trajectory inside that tube.
+
+We make three design choices that distinguish the system from a naive stack of \(H\) independent conformal intervals.
+First, a \emph{max-score simultaneous} conformal tube controls the event that \emph{all} \(H\) horizon steps are covered at once, with scales \(\sigma_h\) and a single joint quantile \(\widehat Q\) (Section~\ref{sec:method:maxscore}).
+Second, a \emph{pre-refill safety} constraint in Tube-MPC rejects plans that would drain the buffer on the conformal lower-bound trajectory (Section~\ref{sec:method:mpc}).
+Third, \emph{frozen split calibration} (\texttt{\_fs}) fits \(\sigma\) and \(\widehat Q\) on disjoint calibration traces and replays chunk-level effective throughput through the same simulator used at test time, aligning offline scores with runtime observations (Section~\ref{sec:method:calib}).
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item \textbf{Tube-MPC with conformal tubes.} Finite-horizon MPC over a multi-step conformal lower bound on throughput, composed with a one-step static conformal cap on the executed action.
+  \item \textbf{Max-score joint tube + safety lemma.} A simultaneous coverage statement under frozen scales (Theorem~\ref{thm:maxscore}) and a conditional no-rebuffer lemma for the safe planner (Lemma~\ref{lem:safety}).
+  \item \textbf{Leakage-free evaluation.} Pre-registered per-family \(\alpha\) selection on validation only, single frozen test run, trace-cluster bootstrap CIs, and manifest-verified traces.
+  \item \textbf{Empirical study.} On synthetic and real \mbox{5G} suites the primary tube arm cuts rebuffering versus RobustMPC with large QoE gains on Markov and Irish traces; broadband joint coverage improves after chunk-aligned calibration but remains a limitation (Section~\ref{sec:eval}).
+\end{itemize}
+
+Section~\ref{sec:related} reviews related work.
+Section~\ref{sec:system} defines the simulator and metrics.
+Section~\ref{sec:method} presents the tube, planner, and calibration protocol.
+Section~\ref{sec:theory} states the coverage and safety results.
+Section~\ref{sec:eval} reports experiments.
+Section~\ref{sec:conclusion} concludes.

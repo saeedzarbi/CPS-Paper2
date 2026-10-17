@@ -1,0 +1,1269 @@
+% !TEX program = pdflatex
+% !BIB program = bibtex
+% Elsevier-compatible manuscript (IEEE twin: main.ltx). Computer Networks encourages the
+% elsarticle class or the els-cas-templates bundle; see https://www.elsevier.com/latex
+% Compile with Elsevier-provided elsarticle.cls.
+% Two-column final layout: \documentclass[final,5p,times,twocolumn]{elsarticle},
+% then (i) \renewenvironment{cps@table}{\begin{table}[!t]}{\end{table}}, (ii) restore figure*/table*
+% for full-width floats. Preprint uses cps@table (pinned [H]; see preamble).
+%
+% References: this file uses BibTeX + elsarticle-num.bst (from the elsarticle bundle).
+% If in-text cites show as [?], run the full chain from this directory:
+%   pdflatex main_elsevier && bibtex main_elsevier && pdflatex main_elsevier && pdflatex main_elsevier
+% Or: latexmk -pdf main_elsevier.tex (see latexmkrc in this folder).
+%
+% Pass natbib options before elsarticle loads natbib (avoids clashes with \biboptions alone).
+\PassOptionsToPackage{numbers,sort&compress}{natbib}
+\documentclass[final,5p,times,twocolumn]{elsarticle}
+% elsarticle: pass natbib options here too (avoids [?] if class did not inherit preamble-only \PassOptionsToPackage).
+\biboptions{numbers,sort&compress}
+
+% Uncomment for review PDFs with line numbers: \usepackage{lineno} and after \begin{document}: \linenumbers
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\newtheorem{proposition}{Proposition}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{etoolbox}
+
+% Tighter float glue ([H] tables/figures/algorithms should not add a full blank line at page top)
+\setlength{\intextsep}{5pt plus 1pt minus 1pt}
+\setlength{\textfloatsep}{6pt plus 1pt minus 1pt}
+\setlength{\floatsep}{5pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{4pt}
+\setlength{\headsep}{12pt}
+
+% Algorithms: avoid horizontal spill and excess vertical list padding inside the ruled box
+\AtBeginEnvironment{algorithm}{%
+  \setlength{\topsep}{2pt}%
+  \setlength{\partopsep}{0pt}%
+}
+\AtBeginEnvironment{algorithmic}{%
+  \sloppy
+  \setlength{\itemsep}{0pt}%
+  \setlength{\parsep}{0pt}%
+  \setlength{\topsep}{0pt}%
+  \setlength{\partopsep}{0pt}%
+}
+
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,fit,calc,shadows,backgrounds}
+\usepackage[section]{placeins} % keep floats within their section
+\usepackage{float} % provides [H] to pin tables/figures in place (Overleaf-friendly)
+% Do NOT load subcaption with elsarticle (caption compatibility mode → fatal on Overleaf).
+% Multi-panel figures use minipage + (a)/(b) labels instead.
+% Float placement: in twocolumn final layout, wide tables must use table* (full
+% text width). Single-column table + tabularx{\linewidth} fits only one column
+% and causes overfull boxes and body text intruding between float parts.
+\makeatletter
+\newenvironment{cps@table}{\begin{table}[!t]}{\end{table}}% single-column tables
+\makeatother
+
+% Allow LaTeX to mix text and floats on the same page (avoid one-figure float pages)
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.15}
+\renewcommand{\floatpagefraction}{0.70}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+% Two-column pages are \flushbottom: a column of stacked figures stretches
+% \@fpsep (default plus 2fil) to match a full table column. Keep floats packed.
+\raggedbottom
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{6pt}
+\setlength{\@fpbot}{0pt}
+\makeatother
+
+% Evaluation figures: scale by line width so on-page text matches Fig. 9/10.
+% Do NOT cap height for most figures — height caps shrink axis labels in the PDF.
+\newcommand{\evalfig}[1]{%
+  \includegraphics[width=\linewidth]{#1}%
+}
+\newcommand{\evalfiglarge}[1]{%
+  \includegraphics[width=\linewidth]{#1}%
+}
+\newcommand{\evalfigwide}[1]{%
+  \includegraphics[width=\linewidth]{#1}%
+}
+\newcommand{\evalfigwideLarge}[1]{%
+  \includegraphics[width=\linewidth]{#1}%
+}
+\newcommand{\evalfigpanel}[1]{%
+  \includegraphics[width=\linewidth]{#1}%
+}
+\newcommand{\evalfigtall}[1]{%
+  \includegraphics[width=\linewidth,height=0.52\textheight,keepaspectratio]{#1}%
+}
+\newcommand{\evalfigsmall}[1]{%
+  \includegraphics[width=0.92\linewidth]{#1}%
+}
+
+\usepackage{tabularx} % full-width tables without resizebox
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\hyphenation{Zarbi Farzinvash Salehpour}
+\usepackage{microtype} % improved justification and hyphenation
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl} % break long URLs in bibliography (REF-04)
+\hypersetup{pdfauthor={Saeed Zarbi, Leili Farzinvash, Pedram Salehpour},
+            pdftitle={Conformal Perceptual Shielding for Adaptive Bitrate Streaming}}
+% Uniform table typography for all floats:
+% body = \footnotesize; notes = \scriptsize; never \resizebox (keeps font size consistent).
+\newcommand{\tablebodyfont}{\footnotesize}
+% Two-line CI cell: keeps numeric columns narrow so all tables share one font size.
+% Keep the complete interval in one math expression so the comma renders correctly.
+\newcommand{\cici}[3]{\makecell[c]{#1\\[-1pt]\scriptsize\ensuremath{[#2,\,#3]}}}
+\newcommand{\cicib}[3]{\makecell[c]{\textbf{#1}\\[-1pt]\scriptsize\ensuremath{[#2,\,#3]}}}
+\newcommand{\figref}[1]{Fig.~\ref{#1}}
+\newcommand{\tabref}[1]{Table~\ref{#1}}
+\newcommand{\evaltable}[1]{%
+  \begingroup\tablebodyfont
+  \renewcommand{\arraystretch}{1.15}%
+  \setlength{\tabcolsep}{3.5pt}%
+  #1%
+  \endgroup
+}
+\newcommand{\tablenote}[1]{%
+  \par\vspace{3pt}%
+  {\scriptsize\raggedright #1\par}%
+}
+\newcommand{\tablenotecols}[2]{%
+  \par\vspace{3pt}%
+  {\scriptsize
+  \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+  #1 & #2
+  \end{tabularx}\par}%
+}
+
+\makeatletter
+% Make \input{} resilient to different build working directories.
+% This is needed because some editors/CI compile from repo root (or a wrapper
+% main.tex), while this manuscript lives in new/src/paper/.
+\def\input@path{{./}{tables/}{figures/}{src/paper/}{src/paper/tables/}{src/paper/figures/}{new/src/paper/}{new/src/paper/tables/}{new/src/paper/figures/}}
+\makeatother
+
+\makeatletter
+\IfFileExists{tables/macros_v12.tex}{\input{tables/macros_v12}}{\typeout{^^J[WARN] Missing tables/macros_v12.tex --- run generate_figures_v12.py^^J}}
+\IfFileExists{tables/macros_equivalence.tex}{\input{tables/macros_equivalence}}{\typeout{^^J[WARN] Missing tables/macros_equivalence.tex --- run compute_vmaf_equivalence.py^^J}}
+\IfFileExists{tables/macros_latency.tex}{\input{tables/macros_latency}}{\typeout{^^J[WARN] Missing tables/macros_latency.tex --- run benchmark_shield_latency.py^^J}}
+\IfFileExists{tables/macros_ladder.tex}{\input{tables/macros_ladder}}{\typeout{^^J[WARN] Missing tables/macros_ladder.tex --- run analyze_vmaf_ladder_perchunk.py^^J}}
+\IfFileExists{tables/macros_ladder_v19.tex}{\input{tables/macros_ladder_v19}}{\typeout{^^J[WARN] Missing tables/macros_ladder_v19.tex --- run make_cps_paper_assets.py^^J}}
+\IfFileExists{tables/macros_cps.tex}{\input{tables/macros_cps}}{\typeout{^^J[WARN] Missing tables/macros_cps.tex --- run make_cps_macros.py^^J}}
+\IfFileExists{tables/macros_perchunk.tex}{\input{tables/macros_perchunk}}{\typeout{^^J[WARN] Missing tables/macros_perchunk.tex --- run ablation_perchunk_ladder.py^^J}}
+\IfFileExists{tables/macros_ablation.tex}{\input{tables/macros_ablation}}{\typeout{^^J[WARN] Missing tables/macros_ablation.tex --- run ablation_eps_alpha.py^^J}}
+\makeatother
+
+% CPS fallbacks (overridden by macros_cps.tex when present)
+\providecommand{\CPSepisodes}{204}
+\providecommand{\CPSepsilon}{1.0}
+\providecommand{\CPSalpha}{0.10}
+\providecommand{\CPScovTarget}{0.90}
+\providecommand{\CPSGreedyBWcs}{-4.5}
+\providecommand{\CPSGreedyRebCs}{-9.3}
+\providecommand{\CPSGreedyVMcs}{-0.01}
+\providecommand{\CPSGreedyRebCr}{-55.5}
+\providecommand{\CPSGreedyCov}{0.919}
+\providecommand{\CPSGreedyCovWarm}{0.903}
+\providecommand{\CPSGreedyCovPost}{0.931}
+\providecommand{\CPSGreedyPBWcs}{8.5\!\times\!10^{-4}}
+\providecommand{\CPSGreedyPRebCs}{8.5\!\times\!10^{-4}}
+\providecommand{\CPSBbaBWcs}{-4.1}
+\providecommand{\CPSBbaRebCs}{-8.9}
+\providecommand{\CPSBbaVMcs}{0.17}
+\providecommand{\CPSBbaRebCr}{-51.0}
+\providecommand{\CPSBbaCov}{0.919}
+\providecommand{\CPSBbaPBWcs}{4.2\!\times\!10^{-16}}
+\providecommand{\CPSBbaPRebCs}{2.5\!\times\!10^{-4}}
+\providecommand{\CPSGreedyImpBWcs}{-14.6}
+\providecommand{\CPSGreedyImpRebCs}{-12.6}
+\providecommand{\CPSGreedyImpVMcs}{-0.23}
+\providecommand{\CPSBbaImpBWcs}{-12.5}
+\providecommand{\CPSBbaImpRebCs}{-13.0}
+\providecommand{\CPSBbaImpVMcs}{-0.02}
+\providecommand{\CPSbbBWcs}{-0.9}
+\providecommand{\CPSbbRebSr}{-98.7}
+\providecommand{\CPSbbCov}{0.890}
+\providecommand{\CPSBolaBWcs}{-4.1}
+\providecommand{\CPSBolaRebCs}{-8.9}
+\providecommand{\CPSBolaVMcs}{0.18}
+\providecommand{\CPSMpcBWcs}{-3.8}
+\providecommand{\CPSMpcRebCs}{-9.2}
+\providecommand{\CPSMpcVMcs}{0.02}
+\providecommand{\CPSPropBWcs}{-35.3}
+\providecommand{\CPSPropRebCs}{-79.3}
+\providecommand{\CPSPropVMcs}{-0.33}
+\providecommand{\CPSPropPRebCs}{6.2\!\times\!10^{-18}}
+\providecommand{\CPSPropImpBWcs}{-21.9}
+\providecommand{\CPSPropImpRebCs}{-29.6}
+\providecommand{\CPSPropImpVMcs}{-0.27}
+\providecommand{\CPSPropImpPRebCs}{3.2\!\times\!10^{-14}}
+\providecommand{\CPScoRegVM}{72.80}
+\providecommand{\CPScoRegReb}{0.31}
+\providecommand{\CPScoRegBr}{801}
+\providecommand{\CPScoRegCov}{0.919}
+\providecommand{\CPScoCpsVM}{75.73}
+\providecommand{\CPScoCpsReb}{0.86}
+\providecommand{\CPScoCpsBr}{1463}
+\providecommand{\CPScoCpsCov}{0.919}
+\providecommand{\CPScoDVM}{2.93}
+\providecommand{\CPScoDReb}{0.55}
+\providecommand{\CPScoWstar}{5.31}
+\providecommand{\CPScoPVM}{5.0\!\times\!10^{-5}}
+\providecommand{\CPScoPReb}{5.0\!\times\!10^{-5}}
+\providecommand{\CPScoDVMlo}{2.61}
+\providecommand{\CPScoDVMhi}{3.25}
+\providecommand{\CPScoDRebLo}{0.29}
+\providecommand{\CPScoDRebHi}{0.85}
+\providecommand{\CPScoWstarLo}{3.40}
+\providecommand{\CPScoWstarHi}{10.27}
+\providecommand{\CPScoWstarMed}{5.37}
+\providecommand{\CPScoDVMposPct}{100.0}
+\providecommand{\CPScoBootN}{204}
+\providecommand{\CPSGreedyStallColdPct}{91.3}
+\providecommand{\CPSGreedyStallMissPct}{8.7}
+\providecommand{\CPSGreedyStallHeldPct}{0.0}
+\providecommand{\CPSGreedyStallEmergPct}{0.0}
+
+% -------------------------------------------------------------------------
+% Fallback macros (compile-safety)
+% If this file is compiled from a different working directory, the relative
+% path above may fail and macros will be undefined. These placeholders ensure
+% the paper still compiles; they will be overridden when macros_v12.tex loads.
+% -------------------------------------------------------------------------
+\providecommand{\VNepisodes}{80}
+\providecommand{\VShieldVariants}{47}
+\providecommand{\VShieldBehaviors}{11}
+\providecommand{\VPairedDQoEvsLeg}{+42.13}
+\providecommand{\VPairedPQoEvsLeg}{5.0\!\times\!10^{-3}}
+\providecommand{\VPairedDRbvsLeg}{-0.55}
+\providecommand{\VPairedPRbvsLeg}{2.9\!\times\!10^{-3}}
+\providecommand{\VPairedDVMvsLeg}{+0.22}
+\providecommand{\VPairedDQoEvsLegStr}{+64.82}
+\providecommand{\VPairedDRbvsLegStr}{-0.69}
+\providecommand{\VPairedDVMvsLegStr}{+0.32}
+\providecommand{\VPairedPVMvsLeg}{0.056}
+\providecommand{\VPairedPQoEvsLegStr}{1.4\!\times\!10^{-3}}
+\providecommand{\VPairedPRbvsLegStr}{2.7\!\times\!10^{-3}}
+\providecommand{\VPairedPVMvsLegStr}{4.1\!\times\!10^{-2}}
+\providecommand{\VPairedDRbvsOff}{-5.92}
+\providecommand{\VPairedPRbvsOff}{1.4\!\times\!10^{-10}}
+\providecommand{\VRbReductionVsPen}{9.87}
+\providecommand{\VRbReductionVsMPC}{25.58}
+\providecommand{\VRbPen}{14.99}
+\providecommand{\VRbMPC}{30.70}
+\providecommand{\VRbVmAwareOne}{5.12}
+\providecommand{\VRbOff}{11.04}
+\providecommand{\VFiveGRbShieldOff}{70.26}
+\providecommand{\VFiveGRbShieldLegacy}{21.91}
+\providecommand{\VFiveGPairedDQoE}{+39.85}
+\providecommand{\VFiveGPairedPQoE}{3.9\!\times\!10^{-5}}
+\providecommand{\VFiveGPairedDRb}{-2.38}
+\providecommand{\VFiveGPairedPRb}{4.4\!\times\!10^{-6}}
+\providecommand{\VFiveGPairedDVm}{+0.01}
+\providecommand{\VFiveGPairedPVm}{0.715}
+\providecommand{\VFiveGPairedDQoEten}{+34.60}
+\providecommand{\VFiveGPairedPQoEten}{8.1\!\times\!10^{-7}}
+\providecommand{\VFiveGPairedDRbten}{-2.27}
+\providecommand{\VFiveGPairedPRbten}{2.8\!\times\!10^{-6}}
+\providecommand{\VFiveGPairedPVmten}{0.422}
+
+% --- Post-hoc TOST equivalence test for paired VMAF differences (see
+% scripts/compute_vmaf_equivalence.py; macros_equivalence.tex overrides these). ---
+\providecommand{\VEqMargin}{2.0}
+\providecommand{\VEqDEight}{0.318}
+\providecommand{\VEqCILoEight}{0.096}
+\providecommand{\VEqCIHiEight}{0.539}
+\providecommand{\VEqPEight}{6.0\!\times\!10^{-21}}
+\providecommand{\VEqDOne}{0.224}
+\providecommand{\VEqCILoOne}{0.027}
+\providecommand{\VEqCIHiOne}{0.422}
+\providecommand{\VEqPOne}{4.3\!\times\!10^{-25}}
+\providecommand{\VEqDFiveGEight}{0.014}
+\providecommand{\VEqCILoFiveGEight}{-0.073}
+\providecommand{\VEqCIHiFiveGEight}{0.101}
+\providecommand{\VEqPFiveGEight}{7.7\!\times\!10^{-53}}
+\providecommand{\VEqDFiveGOne}{0.063}
+\providecommand{\VEqCILoFiveGOne}{-0.004}
+\providecommand{\VEqCIHiFiveGOne}{0.131}
+\providecommand{\VEqPFiveGOne}{1.9\!\times\!10^{-60}}
+
+% --- Shield latency micro-benchmark (see scripts/benchmark_shield_latency.py;
+% macros_latency.tex overrides these). ---
+\providecommand{\VLatMeanUs}{8.8}
+\providecommand{\VLatMedianUs}{5.3}
+\providecommand{\VLatPNinetyNineUs}{28.6}
+\providecommand{\VLatMaxUs}{48.3}
+\providecommand{\VLatNcalls}{2880}
+
+% --- Pareto family table macros (from v123 shield sweep) ---
+% Legacy (shield_legacy, ρ_cat=2)
+\providecommand{\VQoLegacy}{2518.87}
+\providecommand{\VRbLegacy}{5.67}
+\providecommand{\VVmLegacy}{65.82}
+\providecommand{\VIntervLegacy}{3.23}
+% VMAF-aware τ=0.8
+\providecommand{\VQoVmAwareEpt}{2583.70}
+\providecommand{\VRbVmAwareEpt}{4.98}
+\providecommand{\VVmVmAwareEpt}{66.13}
+\providecommand{\VIntervVmAwareEpt}{2.79}
+% VMAF-aware τ=1.0
+\providecommand{\VQoVmAwareOne}{2561.00}
+\providecommand{\VRbVmAwareOne}{5.12}
+\providecommand{\VVmVmAwareOne}{66.04}
+\providecommand{\VIntervVmAwareOne}{2.71}
+% VMAF-aware τ=1.2
+\providecommand{\VQoVmAwareTwl}{2546.86}
+\providecommand{\VRbVmAwareTwl}{5.03}
+\providecommand{\VVmVmAwareTwl}{65.89}
+% VMAF-aware τ=1.5
+\providecommand{\VQoVmAwareFvt}{2532.23}
+\providecommand{\VRbVmAwareFvt}{5.21}
+\providecommand{\VVmVmAwareFvt}{65.86}
+% Threshold only (no VMAF FB)
+\providecommand{\VQoThreshThree}{2519.40}
+\providecommand{\VRbThreshThree}{8.94}
+\providecommand{\VQoThreshFour}{2530.78}
+\providecommand{\VRbThreshFour}{9.96}
+\providecommand{\VQoThreshFive}{2557.17}
+\providecommand{\VRbThreshFive}{10.49}
+% Threshold + VMAF FB
+\providecommand{\VQoThreshThreeVmafFB}{2539.11}
+\providecommand{\VRbThreshThreeVmafFB}{8.45}
+\providecommand{\VVmThreshThreeVmafFB}{66.30}
+\providecommand{\VQoThreshFourVmafFB}{2526.21}
+\providecommand{\VRbThreshFourVmafFB}{9.95}
+\providecommand{\VVmThreshFourVmafFB}{66.36}
+% Shield off
+\providecommand{\VQoOff}{2563.72}
+\providecommand{\VVmOff}{66.55}
+
+% Target journal (Elsevier metadata; Computer Networks guide for authors).
+\journal{Computer Networks}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Conformal Perceptual Shielding for Adaptive Bitrate Streaming}
+
+\author[a]{Saeed Zarbi}
+\author[a]{Leili Farzinvash\corref{c1}}
+\ead{l.farzinvash@tabrizu.ac.ir}
+\author[a]{Pedram Salehpour}
+\cortext[c1]{Corresponding author.}
+
+\address[a]{Department of Computer Engineering, Faculty of Electrical and Computer Engineering, University of Tabriz, Tabriz, Iran}
+
+\begin{abstract}
+Client-side Adaptive Bitrate (ABR) controllers select, for each video chunk, one rung of the bitrate ladder to request.
+That request can stall playback when throughput drops, or waste bandwidth when top rungs are perceptually saturated, harming Quality of Experience (QoE).
+Prior solutions for these challenges ignored perceptual saturation and offered no coverage guarantee.
+Here, coverage refers to the probability that the actual throughput of the next chunk is at least as high as the lower bound used to determine whether the download can be completed before the buffer is empty.
+We propose the Certified Perceptual Shield (CPS), a model-agnostic wrapper for heuristic, model-based, or learned ABR policies.
+CPS, which has three components, works as follows.
+First, knee-based bandwidth banking lowers even a feasible proposal to the smallest rung whose Video Multimethod Assessment Fusion (VMAF) score lies within a perceptual budget \(\varepsilon\) of the proposal.
+Second, an online split-conformal throughput lower bound supplies that coverage without a parametric traffic model.
+Third, a feasibility check admits only rungs whose download time under that bound fits the buffer margin; otherwise CPS emits the lowest rung.
+This yields a per-chunk probabilistic stall certificate, not a zero-stall promise.
+An optional predictive mode (CPS-P) widens \(\varepsilon\) only when the buffer is low or a short look-ahead forecasts a dip.
+On \(\CPSepisodes\) paired synthetic \mbox{5G} episodes, banking reduced bitrate by 3.8--4.5\% and rebuffering by 8.9--9.3\% versus a safety-only shield across four non-learned controllers, with mean VMAF within one point and empirical coverage \(\CPSGreedyCov\) against a \(\CPScovTarget\) target.
+CPS adapts across regimes: on capacity-rich \mbox{5G} links with saturated ladders it banks bandwidth (3.8--4.5\% bitrate saved), and on capacity-limited real broadband traces---where top rungs are rarely jointly feasible and saturated---it shifts control to conformal feasibility, cutting rebuffering by 98.7\%.
+\end{abstract}
+
+\begin{keyword}
+Adaptive Bitrate Streaming\sep Runtime Shielding\sep VMAF\sep Conformal Prediction\sep Certified Safety\sep Quality of Experience
+\end{keyword}
+
+\end{frontmatter}
+
+% =========================================
+\section{Introduction}
+\label{sec:intro}
+
+Client-side Adaptive Bitrate (ABR) policies target average Quality of Experience (QoE).
+Classical controllers---Buffer-Based Adaptation (BBA)~\cite{huang2014buffer}, BOLA~\cite{spiteri2018bola}, RobustMPC~\cite{yin2015control}, bitrate-greedy selection (always requesting the top rung), and Proximal Policy Optimization (PPO)~\cite{mao2017neural,schulman2017proximal}---optimized session averages.
+Those averages can obscure per-chunk risk under volatile sub-6\,GHz and mmWave \mbox{5G} throughput~\cite{narayanan2021variegated,cisco2023,seufert2015survey}.
+A comfortable buffer creates the opposite problem: wasted bandwidth.
+Commercial rate ladders often saturate in Video Multimethod Assessment Fusion (VMAF)~\cite{li2016vmaf}: further bitrate increases at the top often provide only marginal perceptual gains.
+Requesting those rungs when the buffer is healthy consumes bandwidth that could cushion the next dip.
+
+Recent work attacked pieces of this problem, but not the same intersection.
+Conformal-ABR~\cite{zhong2026conformalabr} wrapped a throughput predictor with split-conformal intervals and selected representations under an explicit stall-risk budget.
+SafeSABR~\cite{liu2025safesabr} paired risk-calibrated learning with a runtime capacity auditor on volatile broadband.
+Kairos~\cite{zhong2025kairos} strengthened Model Predictive Control (MPC) with buffer-conditioned uncertainty, yet without a conformal certificate.
+On the learning side, Comyco~\cite{huang2019comyco} folded VMAF into the training objective, and COREL~\cite{hu2023corel} cast ABR as a Constrained Markov Decision Process (CMDP) with a stall-time penalty during rollouts.
+An expected-return or CMDP objective still leaves a per-chunk gap: guarantees hold over the sampled trajectory distribution, so an unseen blockage can induce an unsafe proposal at a single chunk boundary~\cite{hu2023corel,gu2024safereview}.
+Runtime post-shields sit between the base policy and the player and can overwrite that proposal before download~\cite{alshiekh2018shielding,konighofer2025shields}.
+The standard repair, however, decrements the representation index---the discrete ladder index of the proposed rung---until a buffer-feasibility test passes.
+That repair is content-blind: it ignores VMAF saturation near the top of the ladder, and prior shields often used a fixed throughput scale without a stated coverage guarantee.
+None of these lines combines all three ingredients that we need: a model-agnostic post-shield that overwrites an unsafe proposal, a stated conformal throughput lower bound, and VMAF-knee bandwidth banking that downshifts early on saturated upper rungs to reserve headroom.
+
+We introduce a \emph{Certified Perceptual Shield} (CPS) that targets exactly this gap.
+Until a short warm-up of recent chunks fills the calibration window, CPS uses a fixed fallback throughput scale.
+It then switches to an online split-conformal lower bound with finite-sample coverage:
+\begin{enumerate}
+  \item \textbf{VMAF-knee bandwidth banking.} Even a feasible action is lowered to the smallest rung whose VMAF lies within a small perceptual budget of the proposal. The downshift is perceptually bounded, and reclaimed bytes bank as buffer for later chunks.
+  \item \textbf{Conformal throughput lower bound.} Download-time tests use an online split-conformal lower bound on throughput. Under residual exchangeability, the bound covers the next chunk with high probability at a chosen tolerated miss rate. Calibration uses recent residual ratios~\cite{vovk2005algorithmic,angelopoulos2023gentle}.
+  \item \textbf{Certified feasibility.} After banking, CPS prefers a rung whose predicted download time under the throughput lower bound still fits in the remaining buffer (minus a small safety margin). Two emergency cases force the lowest rung instead: (i)~no higher rung passes that test, or (ii)~the buffer is already at or below a critical floor, so the player must request the cheapest chunk. Only when the downloaded rung passes the test and the buffer retains a minimal playout margin does this yield a per-chunk probabilistic stall certificate; it is not a promise of zero stalls.
+\end{enumerate}
+A pure VMAF-ranking shield is not enough on a typical ladder.
+If quality never drops when the rung index rises, then among the feasible rungs the highest VMAF is always the highest index.
+Allowing a small perceptual loss does not force a downshift in that case, because the top feasible rung still wins the ranking.
+CPS therefore banks to the \emph{smallest} rung inside the perceptual budget, rather than maximizing VMAF among feasible rungs.
+The same CPS rule wraps bitrate-greedy, BBA, and PPO hosts without changing their internal logic.
+
+To separate banking from safety, we run three paired arms on identical episode seeds: \textsc{Raw} (unshielded), \textsc{Safety} (conformal feasibility only), and \textsc{Certified} (feasibility plus banking).
+The banking effect is the \textsc{Certified} minus \textsc{Safety} contrast. The safety effect compares \textsc{Safety} or \textsc{Certified} against \textsc{Raw}.
+
+The main contributions are:
+\begin{itemize}
+  \item \textbf{Certified Perceptual Shield.} A model-agnostic runtime projection that combines VMAF-knee bandwidth banking, a conformal throughput lower bound with finite-sample coverage under residual exchangeability, and certified buffer feasibility.
+
+  \item \textbf{Isolated banking evaluation.} Paired \textsc{Raw}, \textsc{Safety}, and \textsc{Certified} rollouts on greedy, BBA, BOLA, RobustMPC, and PPO hosts. We report Wilcoxon tests on bitrate and rebuffering, and Two One-Sided Tests (TOST) of VMAF within a small perceptual tolerance~\cite{lakens2017equivalence}.
+
+  \item \textbf{Optional predictive banking (CPS-P).} This mode widens the perceptual budget dynamically from the base \(\varepsilon\) toward a risk budget \(\varepsilon_{\mathrm{risk}}\) when the buffer is low or a short look-ahead forecasts a dip.
+
+  \item \textbf{Regime characterization.} Banking gains concentrate where ladders saturate at the top and hosts request those rungs (primary \mbox{5G} suite). Real-trace broadband stress is dominated by safety projection.
+
+  \item \textbf{Policy--shield co-design.} An optional PPO study with CPS in the training loop. We report the QoE stall weight at which this co-trained policy crosses a shield-at-eval-only baseline---trained without CPS, then shielded only at test time.
+\end{itemize}
+
+Quantitative results appear in Section~\ref{sec:eval}. That section reports the paired \mbox{5G} and broadband campaigns, optional CPS-P, and the co-design study.
+
+The remainder of this paper is organized as follows.
+Section~\ref{sec:related} reviews related work, and Section~\ref{sec:system} formalizes the streaming model.
+Section~\ref{sec:method} presents CPS and optional co-training.
+Section~\ref{sec:eval} reports the evaluation, and Section~\ref{sec:conclusion} concludes.
+
+% =========================================
+\section{Related work}
+\label{sec:related}
+
+Three areas bear on client-side representation selection: model-based ABR, learned ABR, and constrained control with runtime shielding.
+Our focus is the control policy and its runtime action projection; throughput prediction lies outside this scope.
+Predictors such as CS2P~\cite{sun2016cs2p} played a complementary role: they fed inputs to model-based or learned controllers~\cite{yin2015control,mao2017neural}.
+Beyond prediction, ABR surveys~\cite{bentaleb2018survey,seufert2015survey,peroni2025survey,timmerer2025has} and \mbox{5G/mmWave} measurements~\cite{narayanan2021variegated,fezeu2024midband} agree on one empirical lesson: control must remain robust when throughput fluctuates sharply.
+
+\subsection{Heuristic and model-based ABR}
+
+MPEG Dynamic Adaptive Streaming over HTTP (DASH) separates packaging from transport~\cite{sodagar2011mpeg}.
+In this method, clients execute local adaptation policies based on ladder metadata and observed download conditions.
+Buffer-threshold heuristics such as BBA~\cite{huang2014buffer} remained simple and interpretable.
+BOLA~\cite{spiteri2018bola}, by contrast, derived its decisions from a Lyapunov-based utility formulation.
+RobustMPC~\cite{yin2015control} planned ahead.
+It selected representations by solving a short-horizon model predictive control problem under estimated future throughput.
+The payoff is interpretable thresholds and horizons.
+The cost is calibration fragility: performance degrades when hand-tuned thresholds, planning horizons, or the throughput forecasts that feed them fail to transfer across networks and devices~\cite{narayanan2021variegated,cisco2023}.
+Moreover, VMAF scores often saturate on the upper rungs of a ladder, so those rungs add little perceptual quality~\cite{li2016vmaf}. Conventional feasibility rules still admit those upper rungs whenever the buffer test passes; they do not downshift early on saturated rungs to reserve throughput headroom.
+Other related efforts target different stages of the delivery pipeline.
+SODA~\cite{chen2024soda} pursued smoothness-aware online control. Edge assistance~\cite{mehrabi2019edge} and Oboe-style automatic tuning~\cite{akhtar2018oboe} addressed other parts of the pipeline.
+Recent client-side designs also treat throughput uncertainty explicitly rather than relying on a single point forecast.
+Conformal-ABR~\cite{zhong2026conformalabr} wrapped a throughput predictor with split-conformal intervals. It selected a representation under an explicit stall-risk budget. This yields distribution-free control of prediction error when the traces are exchangeable.
+SafeSABR~\cite{liu2025safesabr} targeted volatile satellite broadband with risk-calibrated reinforcement learning. A runtime safety auditor then checked each policy proposal against conservative capacity bounds before download.
+Kairos~\cite{zhong2025kairos} instead strengthened MPC-based ABR with streaming-aware prediction and buffer-conditioned uncertainty, improving robustness without a conformal certificate.
+These lines of work address complementary failure modes: risk-aware control, runtime auditing, and robust planning.
+As positioned in Section~\ref{sec:intro}, none of them combines a model-agnostic post-shield, a stated conformal throughput lower bound, and VMAF-knee banking; CPS targets that intersection at every chunk.
+
+\subsection{Deep reinforcement learning for ABR}
+
+Pensieve~\cite{mao2017neural} established the template: a trace-driven Deep Reinforcement Learning (DRL) formulation for ABR.
+D-DASH~\cite{gadaleta2017ddash} and more recent PPO-based controllers~\cite{naresh2023ppoabr} followed this line.
+Their neural policies combine throughput histories, buffer state, and manifest features~\cite{sutton2018reinforcement}.
+Comyco~\cite{huang2019comyco} trained by Imitation Learning (IL) against a VMAF-based QoE objective and showed that perceptual signals helped inside the learned policy.
+Loki~\cite{zhang2021loki} combined learned features with a rule-based model and reduced long-tail failures in production.
+Its rule module limited extreme decisions, but it provided no formal feasibility certificate.
+Fugu~\cite{yan2019learning} deployed learned control in live networks. It exposed the distribution shift between simulation and deployment. That shift motivates runtime safeguards beyond expected-return training.
+Taken together, these systems motivate constrained learning and decision-time enforcement.
+As noted in Section~\ref{sec:intro}, a Constrained Markov Decision Process (CMDP) still leaves a per-chunk enforcement gap that training alone cannot close.
+
+\subsection{Safe/constrained Reinforcement Learning (RL), shields, and the content-blindness gap}
+
+CMDPs and Lagrangian primal--dual methods optimize expected return under explicit constraints~\cite{altman1999constrained,paternain2019dual,achiam2017constrained}.
+Safe-RL surveys catalogued related families, including shielding, Lyapunov, and risk-sensitive schemes~\cite{gu2024safereview}; Lyapunov-based safe RL~\cite{chow2018lyapunov} is a representative example.
+COREL~\cite{hu2023corel} was closest to our training formulation.
+It cast ABR over commercial \mbox{5G/mmWave} traces as a CMDP with a stall-time constraint.
+The CMDP was solved by a primal--dual actor--critic.
+That constraint, however, operated within training. It was not a standalone runtime projection that logs each intervention at decision time.
+Runtime shielding takes the opposite approach: it repairs a proposed action before execution and can log each intervention~\cite{alshiekh2018shielding}.
+Surveys split the family into \emph{pre-shielding}, which prunes the action set, and \emph{post-shielding}, which overwrites an unsafe proposal~\cite{konighofer2025shields}.
+By that taxonomy, CPS is a post-shield.
+Its safety set is drawn by a conformal feasibility test rather than a temporal-logic model.
+
+Recent work has broadened both the learned and the uncertainty-aware branches of ABR.
+NetLLM~\cite{wu2024netllm} adapted a pre-trained Large Language Model (LLM) to bitrate selection.
+LingXi~\cite{jia2025lingxi} tuned ABR objectives online from user-level engagement in a large production deployment.
+AAR~\cite{chen2025aar} maximized worst-case QoE under bandwidth uncertainty with an MPC controller for low-latency live streaming.
+These designs improved expected or worst-case QoE, but none of them attached a per-chunk feasibility certificate to the selected representation.
+On the statistical side, conformal risk control~\cite{angelopoulos2024crc} extended split-conformal guarantees from coverage to monotone losses.
+Online conformal updates~\cite{angelopoulos2024online} retained long-run coverage on non-exchangeable sequences.
+Conformal prediction has also become a standard tool for runtime verification and safe control of learning-enabled systems~\cite{lindemann2025cpsurvey}.
+Recent shielded RL even filters actions with conformal safety margins~\cite{kwon2026adaptiveshielding}.
+CPS transfers this runtime-assurance pattern to ABR and couples it with VMAF-knee banking.
+
+By that separation, CPS pairs an optional learned performance layer with a runtime post-shield.
+Learned policies such as Lagrangian PPO can pursue expected stall and smoothness budgets across training rollouts~\cite{paternain2019dual,hu2023corel}, but they cannot certify per-chunk feasibility under conformal throughput bounds.
+Unlike Comyco, where VMAF enters only the learned objective~\cite{huang2019comyco}, CPS reads the ladder at decision time to bank bandwidth proactively, rather than only repairing the representation index in an emergency.
+\tabref{tab:rw_safety_vmaf} compares representative client-side methods along these axes.
+
+\begin{cps@table}
+    \caption{Positioning of client-side ABR methods. Codes: Y = yes, \(\approx\) = optional/partial, Imp.\ = implicit, N = no. \textbf{Constr.:} stall budget enforced during training. \textbf{Guard:} auditable action projection before download~\cite{alshiekh2018shielding}. \textbf{Conf.:} conformal throughput lower bound with stated coverage~\cite{vovk2005algorithmic}. \textbf{Bank:} VMAF-knee bandwidth banking within a perceptual budget \(\varepsilon\).}
+    \label{tab:rw_safety_vmaf}
+    \centering
+    \evaltable{%
+    \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}X cccc@{}}
+    \toprule
+    \textbf{Work} & \textbf{Year} & \textbf{Paradigm} & \textbf{Constr.} & \textbf{Guard} & \textbf{Conf.} & \textbf{Bank} \\
+    \midrule
+    BBA~\cite{huang2014buffer} & 2014 & Heuristic & N & N & N & N \\
+    BOLA~\cite{spiteri2018bola} & 2020 & Lyapunov util. & Imp. & N & N & N \\
+    RobustMPC~\cite{yin2015control} & 2015 & MPC/lookahead & N & N & N & N \\
+    Pensieve~\cite{mao2017neural} & 2017 & DRL & N & N & N & N \\
+    Comyco~\cite{huang2019comyco} & 2019 & Quality-aware IL & N & N & N & N \\
+    Loki~\cite{zhang2021loki} & 2021 & Rule--RL fusion & N & \(\approx\) & N & N \\
+    COREL~\cite{hu2023corel} & 2023 & Constr.\ DRL & Y & N & N & N \\
+    SODA~\cite{chen2024soda} & 2024 & Online control & N & N & N & N \\
+    Conformal-ABR~\cite{zhong2026conformalabr} & 2026 & Risk-controlled ABR & N & Y & Y & N \\
+    SafeSABR~\cite{liu2025safesabr} & 2026 & Risk-cal.\ RL + auditor & Y & Y & \(\approx\) & N \\
+    Kairos~\cite{zhong2025kairos} & 2025 & MPC + uncertainty & N & N & N & N \\
+    NetLLM~\cite{wu2024netllm} & 2024 & LLM-adapted ABR & N & N & N & N \\
+    AAR~\cite{chen2025aar} & 2025 & Robust max--min MPC & N & N & N & N \\
+    \textbf{Ours (CPS)} & --- & Shield (\(\pm\)RL) & \(\approx\) & \textbf{Y} & \textbf{Y} & \textbf{Y} \\
+    \bottomrule
+    \end{tabularx}%
+    }
+    \end{cps@table}
+
+% =========================================
+\section{Model and problem formulation}
+\label{sec:system}
+
+This section formalizes client-side ABR at the chunk timescale.
+We assume a single client, exogenous trace throughput \(C^{\mathrm{tr}}_k\) at chunk index \(k\), and deterministic buffer updates given \((s_k,a^{\mathrm{exec}}_k,C^{\mathrm{tr}}_k)\), where \(s_k\) is the client state and \(a^{\mathrm{exec}}_k\) the executed ladder rung (\tabref{tab:notation}).
+Here, deterministic means that the same inputs always yield the same next buffer and the same executed rung.
+Cross-layer scheduling and transport adaptation are out of scope.
+Certification of the conformal throughput lower bound is probabilistic (Section~\ref{sec:method}).
+\tabref{tab:notation} collects the symbols used throughout.
+
+\begin{cps@table}
+    \caption{Summary of notation.}
+    \label{tab:notation}
+    \centering
+    \evaltable{%
+    \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.36\linewidth}>{\raggedright\arraybackslash}X@{}}
+    \toprule
+    \textbf{Symbol} & \textbf{Meaning} \\
+    \midrule
+    \(k\), \(T_{\mathrm{c}}\), \(N_{\mathrm{ch}}\) & chunk index, chunk duration, chunks per episode \\
+    \(L\), \(\mathcal{B}{=}\{0,\dots,L{-}1\}\) & number of ladder rungs, rung index set \\
+    \(a^{\mathrm{raw}}_k\), \(a^{\mathrm{exec}}_k\), \(\iota_k\) & proposed rung, executed rung, intervention bit \\
+    \(B_k\), \(m\), \(B_{\mathrm{crit}}\) & buffer level, safety margin, critical buffer \\
+    \(V_k(j)\), \(\sigma_k(j)\) & VMAF and size (kb) of rung \(j\) at chunk \(k\) \\
+    \(\varepsilon\), \(\varepsilon_{\mathrm{eff}}\), \(\varepsilon_{\mathrm{risk}}\) & perceptual budget, effective/risk-mode budget \\
+    \(C^{\mathrm{tr}}_k\), \(\hat{C}_k\), \(C^{\mathrm{act}}_k\), \(\underline{C}_k\) & trace rate \(C^{\mathrm{tr}}_k\); predictor \(\hat{C}_k\); realized \(C^{\mathrm{act}}_k\); conformal lower bound \(\underline{C}_k\) (kb/s) \\
+    \(W_{\mathrm{calib}}\), \(\rho_{\mathrm{fb}}\) & residual warm-up length, fallback scale before calibration \\
+    \(\alpha\), \(1{-}\alpha\) & conformal miscoverage, target coverage \\
+    \(r{=}C^{\mathrm{act}}/\hat{C}\), \(W\), \(\kappa\) & residual ratio, residual window, harmonic-mean window \\
+    \(d_k(j)\), \(H\), \(\varepsilon_0\) & download time of rung \(j\), look-ahead, numerical guard \\
+    \(\mu\), \(\beta\) & logged-QoE smoothness and stall weights (Equation~\eqref{eq:qoe-rep}) \\
+    \(w\), \(w^{\star}\) & QoE stall weight (sweep), mean-QoE crossover weight \\
+    \bottomrule
+    \end{tabularx}%
+    }
+\end{cps@table}
+
+\subsection{Streaming architecture and control loop}
+
+We work in the standard Hypertext Transfer Protocol (HTTP) adaptive-streaming abstraction~\cite{yin2015control,mao2017neural,sodagar2011mpeg}.
+A video origin or Content Delivery Network (CDN) publishes \(L\) encoded rungs.
+We index them by \(\mathcal{B}=\{0,\ldots,L{-}1\}\); the DASH or HTTP Live Streaming (HLS) manifest carries the matching per-chunk sizes and perceptual metadata.
+At decision step \(k\), the client fetches chunk \(k\) while holding a playout buffer \(B_k\).
+Decisions advance on the chunk clock, one step per playback duration \(T_{\mathrm{c}}\)~\cite{mao2017neural,yin2015control}.
+The effective trace throughput \(C^{\mathrm{tr}}_k\) is exogenous to the ABR client: the client sees only measured delivery rates, not how the base station schedules radio resources, as on mobile links where blockage and mobility abruptly change throughput~\cite{narayanan2021variegated,cisco2023}.
+
+A base policy \(\pi\) (heuristic or learned) maps an augmented state \(s_k\), including buffer occupancy, throughput history, manifest lookahead, and the VMAF ladder (defined below), to a proposed action \(a^{\mathrm{raw}}_k\in\mathcal{B}\).
+Before chunk \(k\) is downloaded, the Certified Perceptual Shield \(\mathcal{S}\) applies the projection
+\begin{equation}
+\label{eq:shield-map}
+    \big(a^{\mathrm{exec}}_k,\iota_k\big)=\mathcal{S}\!\left(s_k,a^{\mathrm{raw}}_k\right),\qquad a^{\mathrm{exec}}_k\in\mathcal{B},\ \ \iota_k\in\{0,1\},
+\end{equation}
+The projection returns the executed rung index \(a^{\mathrm{exec}}_k\) and an intervention bit \(\iota_k\), which indicates whether the projection altered the proposal.
+Only \(a^{\mathrm{exec}}_k\) feeds the chunk download and buffer dynamics Equation~\eqref{eq:buffer}.
+\figref{fig:arch} traces the \(a^{\mathrm{raw}}_k\!\rightarrow\!\mathcal{S}\!\rightarrow\!a^{\mathrm{exec}}_k\) path.
+That path does not require a learned host: the actor, critic, and dual variables in the figure are an optional RL training branch and are unused at inference.
+
+\begin{figure*}[!t]
+    \centering
+    \adjustbox{max width=\textwidth}{\input{figures/fig_system_arch_tikz.tex}}%
+    \caption{CPS control loop. Solid arrows: runtime inference path, where CPS projects the proposal \(a^{\mathrm{raw}}_k\) to \(a^{\mathrm{exec}}_k\) using \(\underline{C}_k\). Dashed: optional RL training branch, unused at inference.}
+    \label{fig:arch}
+\end{figure*}
+
+Optional training-time CMDP learning enforces budgets on stall time and smoothness in expectation over rollouts~\cite{paternain2019dual,achiam2017constrained}.
+It does not guarantee per-step stall avoidance from throughput uncertainty alone.
+At runtime, CPS projects \(a^{\mathrm{raw}}_k\) to a feasible rung using a conformal lower bound \(\underline{C}_k\); marginal coverage \(C^{\mathrm{act}}_k\ge\underline{C}_k\) holds at rate \(1{-}\alpha\)~\cite{vovk2005algorithmic,angelopoulos2023gentle}.
+
+\subsection{State, action, reward, and nonlinear perceptual mapping}
+
+\textbf{State \(s_k\).}
+The observation holds buffer occupancy, past throughput samples, and the previous decision.
+It also includes manifest lookahead: upcoming chunk sizes across the rung ladder, plus the spatial complexity index (SI) and temporal complexity index (TI), which measure texture and motion richness~\cite{itu2023p910}.
+Higher SI/TI indicate richer spatial or temporal structure in the chunk.
+The VMAF ladder \(\{V_k(j)\}_{j\in\mathcal{B}}\) completes the observation, where \(V_k(j)\) is the perceptual score for chunk \(k\) at rung \(j\)~\cite{li2016vmaf}.
+This last component is essential: without \(\{V_k(j)\}\), neither a learned host nor CPS can detect the content-dependent ladder saturation that bandwidth banking exploits.
+
+\textbf{Nonlinear, content-dependent fidelity.}
+Saturation arises because quality does not scale linearly with rate: for each chunk \(k\), the map \(j\mapsto V_k(j)\) is not affine in the discrete rung index \(j\).
+This map also varies across chunks.
+Different Group-of-Pictures (GOP) structures and texture content yield different marginal VMAF gains between adjacent rungs.
+Therefore, the bitrate-to-VMAF relationship is both nonlinear and content-dependent.
+Consequently, adjacent rungs may differ by a few VMAF points or by more than ten.
+Quality often saturates at the upper rungs of the ladder---precisely the structure that bandwidth banking exploits.
+CPS exploits any saturation that remains in a deployed ladder at decision time.
+In contrast, perceptually aware Just-Noticeable Difference (JND)-based per-title encoding aims to remove this saturation at authoring time~\cite{menon2022perceptual}.
+
+\textbf{Action.}
+\(a^{\mathrm{raw}}_k\in\mathcal{B}\) is the policy's proposed rung index for chunk \(k\); the environment executes only \(a^{\mathrm{exec}}_k\).
+
+\textbf{QoE surrogate.}
+Keeping to RobustMPC/Pensieve reporting conventions~\cite{yin2015control,mao2017neural}, we log a scalar per-chunk surrogate with fidelity \(q_k \equiv V_k\!\left(a^{\mathrm{exec}}_k\right)\):
+\begin{equation}
+\label{eq:qoe-rep}
+    \mathrm{QoE}^{\mathrm{(rep)}}_{k} = q_k - \mu\, \text{smooth}_k - \beta\, \tau^{\mathrm{stall}}_k,
+\end{equation}
+where \(\text{smooth}_k=\lvert q_k-q_{k-1}\rvert\) is the absolute VMAF change between adjacent chunks and \(\tau^{\mathrm{stall}}_k\) is the stall duration at step \(k\).
+The first chunk takes a zero smoothness term.
+The weights \(\mu\) and \(\beta\) are fixed in Section~\ref{sec:eval:setup}.
+The stall weight \(\beta\) is inherited from Pensieve's linear QoE~\cite{mao2017neural}, where it was set for bitrate in Mbps; we keep it unchanged rather than re-tuning it for the 0--100 VMAF scale, so the logged scalar weights stalls lightly. We therefore report rebuffering separately, and the co-design analysis sweeps the stall weight explicitly (Section~\ref{sec:eval:codesign}).
+Session QoE sums over chunks: \(\sum_{k\in\mathcal{K}_e}\mathrm{QoE}^{\mathrm{(rep)}}_{k}\).
+For a learned host, optional RL training substitutes the Lagrangian CMDP objective in Section~\ref{sec:system:cmdp}~\cite{altman1999constrained,paternain2019dual}.
+
+\subsection{Ladder saturation}
+\label{sec:system:ladder}
+
+The evaluated system reports one VMAF value per rung and video (pooled per-frame scores), so shield decisions operate on a per-title session-mean ladder that does not vary across chunks. We keep the general notation \(V_k(j)\) because the per-chunk ablation (Section~\ref{sec:eval:perchunk}) uses actual per-chunk ladders; in the headline runs \(V_k(j)\equiv V(j)\).
+\tabref{tab:ladder:spacing} summarizes session-mean ladders for \(\LadNVideos\) publicly available reference titles (five Blender animations and seven natural-motion Xiph DERF clips, including Ducks Take Off).
+\figref{fig:ladder} illustrates per-chunk spread on three titles with frame-level VMAF logs (Big Buck Bunny, Tears of Steel, and Sintel).
+Across the twelve-title suite, \(\LadPctNonMonotone\%\) exhibit a non-monotone session-mean ladder. Mid-ladder inversions concentrate at the \(750{\to}1200\,\mathrm{kbps}\) step; the top three rungs (\(1850\), \(2850\), \(6000\,\mathrm{kbps}\)) remain nondecreasing on every title. The mean top-rung gain (6000 vs.\ 2850\,kbps) is only \(\LadTopGainMean\) VMAF points.
+The session-mean top-rung gain averages across titles; saturated animation titles can appear nearly flat in \figref{fig:ladder} despite this mean.
+This pattern reflects strong saturation on animation titles (e.g.\ Big Buck Bunny at \(+0.03\)) but steeper climbs on natural content (e.g.\ Park Joy at \(+14.3\)).
+Two properties make banking worthwhile. First, many adjacent pairs differ by at most one VMAF point on saturated titles, so a single-step downgrade costs almost nothing perceptually. Second, the top rungs saturate frequently, allowing the knee rule in Equation~\eqref{eq:knee} to bank bytes with no material quality loss.
+On the four titles with a nondecreasing session-mean ladder, max-VMAF and max-index feasible choices coincide (Proposition~\ref{prop:collapse}).
+The same equivalence holds for the upper three rungs on every title; greedy banking operates mainly there.
+CPS instead picks the smallest rung within the perceptual budget, preserving near-lossless downshifts under saturation.
+Shield decisions use session-mean ladders, but per-chunk VMAF can invert locally (\figref{fig:ladder}); Section~\ref{sec:eval:perchunk} tests banking on these per-chunk ladders.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_ladder_perchunk.pdf}
+    \caption{Per-chunk VMAF ladders for Big Buck Bunny, Tears of Steel, and Sintel (\(\LadNChunks\) chunks). (a)~Session-mean ladder (markers and lines); the shaded band of the same colour shows each title's per-chunk min--max range (blue: Big Buck Bunny, orange: Tears of Steel, green: Sintel). (b)~Adjacent-rung VMAF gaps; dashed line: zero gain.}
+    \label{fig:ladder}
+\end{figure}
+
+\begin{cps@table}
+    \caption{Session-mean representation ladder across twelve evaluation titles.
+    Top gain: session-mean VMAF at \(6000\,\mathrm{kbps}\) minus session-mean VMAF at \(2850\,\mathrm{kbps}\).
+    Span: session-mean VMAF at \(6000\,\mathrm{kbps}\) minus session-mean VMAF at \(300\,\mathrm{kbps}\).
+    Mono.: non-decreasing session-mean ladder across rungs.
+    Held-out (\checkmark): excluded from PPO training.
+    SI/TI: spatial/temporal complexity indices.}
+    \label{tab:ladder:spacing}
+    \centering
+    \evaltable{\input{tables/table_ladder_spacing.tex}}
+\end{cps@table}
+
+\subsection{Chunk-timescale dynamics}
+
+\subsubsection{Throughput and latency}
+Let \(C^{\mathrm{tr}}_k>0\) be the trace-derived effective throughput for chunk \(k\).
+Section~\ref{sec:method} defines predictor \(\hat{C}_k\) (harmonic mean of recent realizations); the conformal construction yields lower bound \(\underline{C}_k\) fed to the shield.
+The realized throughput of the executed download is \(C^{\mathrm{act}}_k\); in our trace-driven simulator \(C^{\mathrm{act}}_k=C^{\mathrm{tr}}_k\).
+Given \(a^{\mathrm{exec}}_k\), the client downloads the manifest payload size \(\sigma_{k}(a^{\mathrm{exec}}_k)\) in kilobits.
+Let \(\tilde{C}_k=\max\{C^{\mathrm{act}}_k,\varepsilon_0\}\) for a small constant \(\varepsilon_0{>}0\) (the same numerical guard as in Equation~\eqref{eq:dl}), and \(d_k(j)=\sigma_{k}(j)/\tilde{C}_k\) for the nominal download duration of rung \(j\).
+The executed chunk uses \(d_k\equiv d_k(a^{\mathrm{exec}}_k)\)~\cite{yin2015control}.
+Feasibility timing under \(\underline{C}_k\) is defined in Section~\ref{sec:method}.
+
+\subsubsection{Buffer and stall}
+Let \(B_k\ge 0\) be the buffered playback time when the download of chunk \(k\) begins~\cite{yin2015control,mao2017neural}.
+Rebuffering (stall) and the buffer update follow
+\begin{equation}
+    \tau^{\mathrm{stall}}_k=\max\{0,\, d_k-B_k\},
+\end{equation}
+\begin{equation}
+    \label{eq:buffer}
+    B_{k+1}=\min\bigl\{\max\{0,B_k-d_k\}+T_{\mathrm{c}},\,B_{\max}\bigr\},
+\end{equation}
+where \(B_{\max}\) is the player's buffer cap (\(12\,\mathrm{s}\) in our simulator unless noted).
+Randomness across episodes has a single source: trace and initial-condition sampling~\cite{fcc2015mba,kvalbein2014,bentaleb2018survey}.
+
+\subsection{Optional Lagrangian training for RL hosts}
+\label{sec:system:cmdp}
+
+When the base policy is learned, PPO training uses a Lagrangian-relaxed CMDP.
+The CMDP maximizes expected fidelity under budgets on trajectory-level rebuffering and smoothness~\cite{altman1999constrained,paternain2019dual,achiam2017constrained}.
+An unconstrained Markov Decision Process (MDP) optimizes only \(\mathbb{E}[\sum_k \gamma^k r_k]\). It places no explicit budget on stalls or smoothness.
+Set \(c^{\mathrm{stall}}_k \equiv \tau^{\mathrm{stall}}_k\) and \(c^{\mathrm{sm}}_k \equiv \text{smooth}_k\).
+The undiscounted episodic rebuffering ratio is
+\begin{equation}
+    \mathrm{RB}(e)=\frac{1}{T^{\mathrm{play}}_{e}}\sum_{k\in\mathcal{K}_{e}} c^{\mathrm{stall}}_k.
+\end{equation}
+The mean smoothness cost is
+\begin{equation}
+    \mathrm{SM}(e)=\frac{1}{N_{\mathrm{ch}}}\sum_{k\in\mathcal{K}_{e}} c^{\mathrm{sm}}_k,
+\end{equation}
+with targets \(\delta_{\mathrm{rf}}{=}0.05\) (rebuffering-ratio budget) and \(\delta_{\mathrm{sm}}{=}3.5\) (mean smoothness budget in VMAF points)~\cite{yin2015control}.
+Per-step normalized costs \(\widetilde{\mathrm{RB}}_k\) and \(\widetilde{\mathrm{SM}}_k\) yield the Lagrangian-relaxed PPO reward
+\begin{equation}
+\label{eq:rtrain-app}
+    r^{\mathrm{train}}_k
+    = \frac{1}{100}\Big(
+        q_k
+        - \lambda_r \,\widetilde{\mathrm{RB}}_k
+        - \lambda_s \,\widetilde{\mathrm{SM}}_k
+        - w_b\,\phi(B_k)
+        - w_\ell\,\psi^{\mathrm{Lya}}_k
+    \Big),
+\end{equation}
+where projected ascent on the empirical constraint gaps updates \((\lambda_r,\lambda_s)\)~\cite{paternain2019dual}.
+The buffer-deviation term \(\phi(B_k)\) and the Lyapunov drift penalty \(\psi^{\mathrm{Lya}}_k\) are optional~\cite{neely2010stochastic}.
+They steady the optimization. They do not certify per-chunk feasibility.
+Finite-sample PPO with a clipped objective cannot provide that certificate~\cite{schulman2017proximal}.
+CPS supplies it at deployment time.
+The implementation uses Stable-Baselines~3 PPO~\cite{raffin2021sb3,schulman2017proximal}: two Tanh Multi-Layer Perceptrons (MLPs) of width 256, Generalized Advantage Estimation (GAE) with discount \(\gamma{=}0.99\) and \(\lambda_{\mathrm{GAE}}{=}0.95\), dual step sizes \(\eta_r{=}0.012\) and \(\eta_s{=}0.003\), and projected ranges \(\lambda_r\in[4.3,40]\), \(\lambda_s\in[0.3,2.5]\) after a 60-episode warm-up.
+The discount \(\gamma\) and the GAE parameter \(\lambda_{\mathrm{GAE}}\) are the standard PPO settings of Stable-Baselines~3 and GAE~\cite{schulman2017proximal,raffin2021sb3}.
+In contrast, \(\lambda_r\) and \(\lambda_s\) are Lagrangian dual multipliers rather than fixed PPO hyperparameters; after the warm-up, projected ascent on the constraint gaps updates them within the ranges above.
+These ranges follow from the VMAF scale: the lower bound of \(\lambda_r\) lies close to the stall weight used in evaluation, so the penalty is effective from the start, and the upper bound keeps the rebuffering cost commensurate with fidelity units without overwhelming the reward.
+The step sizes \(\eta_r\) and \(\eta_s\) are the dual ascent rates; for constraint gaps on the order of a few hundredths, they yield gentle but stable updates, and \(\eta_s\) is smaller because the smoothness constraint acts on the per-point scale.
+Both rates were stabilized by monitoring the dual traces and the achieved-versus-target constraint gap during training.
+Co-design wraps the training environment in CPS, so the actor--critic observes the projected action distribution.
+Shield-at-eval-only policies train without the shield.
+
+% =========================================
+\section{Method: Certified Perceptual Shield}
+\label{sec:method}
+
+CPS is a model-agnostic wrapper around any base policy that proposes \(a^{\mathrm{raw}}_k\in\mathcal{B}\).
+A base policy proposes a ladder rung; CPS applies a projection before download; the player then updates the buffer under realized throughput.
+The projection is deterministic: for fixed inputs it always returns the same executed rung.
+What it certifies is probabilistic: feasibility is tested against a conformal throughput lower bound with a stated coverage guarantee.
+The rest of this section covers the conformal estimator, the banking and feasibility projection, a predictive extension, optional PPO co-training, and the evaluation arms.
+
+\subsection{Conformal throughput lower bound}
+\label{sec:method:conformal}
+
+The point predictor \(\hat{C}_k\) is the harmonic mean of the last \(\kappa\) observed throughputs, following the RobustMPC throughput estimator~\cite{yin2015control}.
+After each step, the multiplicative residual \(r=C^{\mathrm{act}}/\hat{C}\) is appended to a rolling window of size \(W\).
+With \(n\) residuals in that window, split conformal picks a conservative residual quantile at the target miss rate \(\alpha\): the entry at rank \(\lfloor\alpha(n{+}1)\rfloor\) in the sorted list (1-based indexing).
+The factor \(n{+}1\) is the standard finite-sample correction; a linearly interpolated empirical quantile would under-cover on short episodes~\cite{vovk2005algorithmic,angelopoulos2023gentle}.
+If that rank is undefined---or while \(n<W_{\mathrm{calib}}\) with \(W_{\mathrm{calib}}{=}20\)---we fall back to a fixed scale \(\rho_{\mathrm{fb}}{=}0.80\). That warm-up is not the finite-sample certificate.
+The lower bound reads \(\underline{C}_k=\hat{C}_k\cdot q_{\alpha}\), clipped to stay at or below \(\hat{C}_k\).
+Under residual exchangeability, the construction guarantees \(\mathbb{P}(C^{\mathrm{act}}\ge\underline{C}_k)\ge 1-\alpha\) once the residual window has length at least \(W_{\mathrm{calib}}\).
+Given \(\underline{C}_k\), the certified download duration of rung \(j\) is
+\begin{equation}
+\label{eq:dl}
+    d_k(j)=\min\!\left\{\frac{\sigma_k(j)}{\underline{C}_k+\varepsilon_0},\ 60\right\}.
+\end{equation}
+Both \(\sigma_k(j)\) and \(\underline{C}_k\) use kilobit units (\(\mathrm{kb}\) and \(\mathrm{kb/s}\)), so their ratio is already in seconds; \(\varepsilon_0{>}0\) and the outer \(\min\{\cdot,60\}\) are numerical guards against near-zero denominators.
+
+\begin{proposition}[\textbf{Per-chunk stall certificate}]
+\label{prop:feas}
+Assume chunk \(k\), executed index \(j\), and conformal lower bound \(\underline{C}_k\) computed with miscoverage \(\alpha\).
+Suppose the following three conditions hold:
+\begin{enumerate}
+  \item[(i)] \(B_k\ge 0.1\,\mathrm{s}\) (buffer floor);
+  \item[(ii)] \(\bar{d}_k(j)\le\max\{B_k-m,0.1\}\), where \(\bar{d}_k(j)=\sigma_k(j)/\underline{C}_k\) is the unguarded certified duration;
+  \item[(iii)] \(C^{\mathrm{act}}_k\ge\underline{C}_k\).
+\end{enumerate}
+Then \(\tau^{\mathrm{stall}}_k=0\).
+The shield (Section~\ref{sec:method:shield}) tests the guarded duration \(d_k(j)\) of Equation~\eqref{eq:dl}, which equals \(\bar{d}_k(j)\cdot\underline{C}_k/(\underline{C}_k+\varepsilon_0)\) whenever the \(60\,\mathrm{s}\) cap is inactive; with \(\varepsilon_0\ll\underline{C}_k\) the two tests coincide up to this negligible factor, and the proposition applies to chunks that pass (ii).
+Condition~(i) is required so that \(\max\{B_k-m,0.1\}\le B_k\).
+Separately, under residual exchangeability, \(\mathbb{P}(C^{\mathrm{act}}_k\ge\underline{C}_k)\ge 1-\alpha\) at each step where the finite-sample bound is defined (\(n\ge W_{\mathrm{calib}}\)).
+That coverage statement concerns the throughput lower bound alone; it is not itself a stall claim.
+\end{proposition}
+\begin{proof}[Proof sketch]
+By (iii) and \(\underline{C}_k>0\), \(\tilde{C}_k\ge C^{\mathrm{act}}_k\ge\underline{C}_k\), so the realized download time satisfies \(\sigma_k(j)/\tilde{C}_k\le\bar{d}_k(j)\). By (ii) and (i), \(\bar{d}_k(j)\le\max\{B_k-m,0.1\}\le B_k\); hence \(\tau^{\mathrm{stall}}_k=\max\{0,d_k-B_k\}=0\).
+Coverage follows from standard split-conformal prediction with the \((n{+}1)\) rank correction~\cite{vovk2005algorithmic,angelopoulos2023gentle}.
+\end{proof}
+
+\emph{Scope of the guarantee.}
+Two parts of the certificate behave differently.
+The feasibility guarantee is unconditional only when the executed rung satisfies \(\bar{d}_k(j)\le\max\{B_k-m,0.1\}\) and \(B_k\ge 0.1\,\mathrm{s}\).
+If the realized throughput then meets or exceeds \(\underline{C}_k\), that chunk cannot stall.
+The shield can still select rung \(0\) when \(B_k\le B_{\mathrm{crit}}\), or when the decrement loop reaches \(0\) while \(d_k(0)\) fails the test (Section~\ref{sec:method:shield}).
+Those chunks are outside the certificate.
+
+Only the throughput bound is probabilistic.
+It provides marginal coverage over the exchangeable residual window, \(\mathbb{P}(C^{\mathrm{act}}_k\ge\underline{C}_k)\ge 1-\alpha\), averaged over residual draws rather than per chunk, and only after warm-up.
+It does not provide coverage conditional on the current buffer or throughput regime.
+Distribution-free split conformal cannot do so without stronger assumptions~\cite{angelopoulos2023gentle}.
+CPS therefore certifies feasibility on every chunk whose bound holds and whose rung passed the test---under exchangeability the bound fails with probability at most \(\alpha\); it does not promise a stall-free session.
+
+Abrupt \mbox{5G/mmWave} Line-of-Sight/Non-Line-of-Sight (LOS/NLOS) transitions and scheduling shifts can break residual exchangeability~\cite{narayanan2021variegated}. Our online defense is a sliding residual window of length \(W\). The recent ratios play two roles: they calibrate \(q_{\alpha}\), and they are the ratios immediately preceding the chunk we predict. The bound therefore tracks local nonstationarity, even though finite-sample exactness holds only on an exchangeable window. If drift is large, coverage decays. The decay is bounded by a total-variation term between calibration and test residuals~\cite{barber2023beyond}. A weighted-conformal variant that down-weights stale residuals is a natural extension, which we leave to future work.
+Empirically, we treat reported coverage as the operational check of Proposition~\ref{prop:feas}.
+The headline rate averages over every chunk with a defined bound, including the \(W_{\mathrm{calib}}\) warm-up steps that use \(\rho_{\mathrm{fb}}\).
+On the primary \mbox{5G} pool, that inclusive rate is \(\CPSGreedyCov\) against the target \(\CPScovTarget\).
+Restricting to post--warm-up chunks alone raises coverage to \(\CPSGreedyCovPost\) (warm-up chunks alone: \(\CPSGreedyCovWarm\)); Section~\ref{sec:eval} reports both views.
+Real broadband traces (Section~\ref{sec:eval:improved}) and tighter \(\alpha\) (Section~\ref{sec:eval:sensitivity}) can sit marginally below the target.
+This is what the theory predicts: short calibration windows and nonstationary traces both erode finite-sample coverage.
+
+\subsection{Banking and certified feasibility}
+\label{sec:method:shield}
+
+\emph{Safety set.} Indices that never exceed the proposal and fit the buffer margin \(m\) form
+\begin{equation}
+\label{eq:asafe}
+    \mathcal{A}_{\mathrm{safe},k}(a)=\bigl\{j\le a:\ d_k(j)\le \max\{B_k-m,0.1\}\bigr\}.
+\end{equation}
+\emph{VMAF-knee banking.} The perceptual budget \(\varepsilon\) is a tolerance in VMAF points. Even when \(a\) is feasible, CPS steps down to the smallest rung whose VMAF lies within \(\varepsilon\) of the proposal, namely
+\begin{equation}
+\label{eq:knee}
+    j^{\mathrm{knee}}_k(a)=\min\bigl\{j\le a:\ V_k(a)-V_k(j)\le\varepsilon\bigr\},
+\end{equation}
+The shield then projects \(j^{\mathrm{knee}}_k(a)\) onto \(\mathcal{A}_{\mathrm{safe},k}(a)\); safety always takes precedence over \(\varepsilon\).
+
+\emph{Remark.}
+Banking may run a lower rung than the proposal, and a lower rung can only shorten \(d_k(\cdot)\).
+Once Equation~\eqref{eq:asafe} holds, safety projection therefore keeps the certificate intact.
+
+Algorithm~\ref{alg:cps} states the CPS projection that realizes Equations~\eqref{eq:asafe}--\eqref{eq:knee}.
+If \(B_k\le B_{\mathrm{crit}}\), CPS selects the lowest rung with no feasibility test.
+Otherwise it computes the knee index from Equation~\eqref{eq:knee} under the effective budget \(\varepsilon_{\mathrm{eff}}\).
+This budget equals \(\varepsilon\) unless predictive mode is on (Section~\ref{sec:method:predictive}).
+CPS then decrements the index until the certified duration in Equation~\eqref{eq:dl} respects the margin \(m\), or until the index is \(0\).
+If rung \(0\) still fails the test, the procedure still selects it so that playback can continue: it is an emergency best-effort choice without the stall certificate of Proposition~\ref{prop:feas}.
+The same holds for the \(B_{\mathrm{crit}}\) path.
+The shield never upgrades a proposal.
+Diagnostics log banked bits, VMAF surrendered, and whether realized throughput met \(\underline{C}_k\) (empirical coverage).
+
+\begin{algorithm}[!t]
+\footnotesize
+\caption{Certified Perceptual Shield (compact)}
+\label{alg:cps}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} \(a^{\mathrm{raw}}\), \(B_k\), \(\{\sigma_k(j),V_k(j)\}\), conformal estimator; parameters \((\varepsilon,m,B_{\mathrm{crit}})\)
+\STATE \textbf{Output:} \((a^{\mathrm{exec}},\iota)\) with \(\iota=\mathbf{1}[a^{\mathrm{exec}}\neq a^{\mathrm{raw}}]\)
+\STATE \(a\leftarrow\mathrm{clip}(a^{\mathrm{raw}})\); \(\underline{C}_k\leftarrow\) conformal lower bound; define \(d_k(\cdot)\) via Equation~\eqref{eq:dl}
+\IF{\(B_k\le B_{\mathrm{crit}}\)} \STATE \textbf{return} \((0,\mathbf{1}[a\neq0])\) \ENDIF
+\STATE compute \(\varepsilon_{\mathrm{eff}}\) (Section~\ref{sec:method:predictive}); \(j\leftarrow j^{\mathrm{knee}}_k(a)\) via Equation~\eqref{eq:knee} with \(\varepsilon_{\mathrm{eff}}\)
+\WHILE{\(j>0\) and \(d_k(j)>\max\{B_k-m,0.1\}\)} \STATE \(j\leftarrow j-1\) \ENDWHILE
+\STATE \(a^{\mathrm{exec}}\leftarrow\min\{a,j\}\); \textbf{return} \((a^{\mathrm{exec}},\mathbf{1}[a^{\mathrm{exec}}\neq a])\)
+\end{algorithmic}
+\end{algorithm}
+
+Banking distinguishes CPS from prior VMAF-ranking shields, and the distinction is substantive. On any nondecreasing prefix of a ladder, a ranking shield provably banks nothing.
+
+\begin{proposition}[\textbf{Ranking shields collapse on monotone ladders}]
+\label{prop:collapse}
+Assume chunk \(k\) and suppose the VMAF ladder is nondecreasing in the rung index, \(V_k(0)\le\cdots\le V_k(L-1)\), and that download time \(d_k(\cdot)\) is nondecreasing in the rung index.
+Let \(\mathcal{F}=\{j: d_k(j)\le \max\{B_k-m,0.1\}\}\) be the feasible set, as in Equation~\eqref{eq:asafe}.
+Then any shield that selects \(\arg\max_{j\in\mathcal{F}} V_k(j)\) selects the highest feasible index in \(\mathcal{F}\), independently of any perceptual-loss budget \(\varepsilon\).
+\end{proposition}
+\begin{proof}
+Because \(d_k\) is nondecreasing, \(\mathcal{F}\) is a contiguous prefix of the ladder ending at its largest index.
+Because \(V_k\) is also nondecreasing, the feasible rung with highest VMAF is exactly that largest index; the budget \(\varepsilon\) never changes the choice.
+\end{proof}
+Ranking by retained VMAF is therefore equivalent to selecting the highest feasible index, and it frees no bandwidth.
+CPS instead uses the proposal's quality and steps down to the smallest rung within \(\varepsilon\) of it, as stated in Equation~\eqref{eq:knee}.
+This mechanism lets CPS exploit rate--quality saturation: when top rungs carry near-identical VMAF, the knee lies well below the highest feasible index, and the freed bytes bank as buffer.
+
+The evaluation isolates banking from safety with three paired arms (\textsc{Raw}, \textsc{Safety}, \textsc{Certified}); Section~\ref{sec:eval:setup} defines them relative to Algorithm~\ref{alg:cps}.
+
+\subsection{Predictive and risk-aware perceptual budget}
+\label{sec:method:predictive}
+
+A fixed perceptual budget spends the same tolerance on every chunk.
+That spend is unnecessary while the buffer is comfortable, and it can be too small when a dip is imminent.
+CPS-P, the predictive mode introduced above, exists to separate those two cases: it keeps the base budget \(\varepsilon\) in the comfortable regime and widens it only under the risk triggers below.
+Section~\ref{sec:eval:improved} compares this mode with a larger static budget.
+
+The predictive budget widens when slack is scarce: it banks lightly when buffer headroom is ample and more aggressively when risk arises.
+While the buffer stays comfortable, \(\varepsilon_{\mathrm{eff}}{=}\varepsilon\) holds quality steady.
+Two risk triggers widen the budget: (i)~the buffer \(B_k\) falls below a risk threshold \(B_{\mathrm{risk}}\); (ii)~a short \(H\)-step look-ahead under a planning throughput floor (a low quantile of recent observations) forecasts a dip below \(B_{\mathrm{risk}}\).
+In either case, the effective budget is
+\begin{equation}
+\label{eq:eps-eff}
+    \varepsilon_{\mathrm{eff}}=\varepsilon+(\varepsilon_{\mathrm{risk}}-\varepsilon)\cdot f(B_k,\mathrm{lookahead}),
+\end{equation}
+where \(\varepsilon_{\mathrm{risk}}>\varepsilon\) is the wider risk budget.
+Let \(\underline{C}_k^{\mathrm{plan}}\) be the planning throughput: the conformal lower bound, optionally floored by a low quantile of recent observations when dip forecasting is enabled.
+Simulate \(H\) future downloads of the proposed rung under \(\underline{C}_k^{\mathrm{plan}}\), write \(\hat{B}_{k+h}\) for the resulting buffer after step \(h\), and let \(\hat{B}^{\min}_k=\min_{1\le h\le H}\hat{B}_{k+h}\).
+Then
+\begin{equation}
+\label{eq:f-ramp}
+    f(B_k,\mathrm{lookahead})
+    =
+    \begin{cases}
+      1, & \hat{B}^{\min}_k<B_{\mathrm{risk}},\\[0.3em]
+      \mathrm{clip}\!\Bigl(\dfrac{B_{\mathrm{risk}}-B_k}{B_{\mathrm{risk}}},0,1\Bigr), & \text{otherwise,}
+    \end{cases}
+\end{equation}
+so \(f\) rises from \(0\) at a comfortable buffer to \(1\) at or below \(B_{\mathrm{risk}}\), and jumps to \(1\) if the look-ahead predicts a breach.
+The shield can therefore pre-bank more deeply, before a stall forces an emergency cut.
+CPS-P denotes the same CPS projection with this risk-aware \(\varepsilon_{\mathrm{eff}}\) in place of a fixed \(\varepsilon\); the conformal bound and feasibility test are unchanged.
+Operating values for \(\varepsilon\), \(\varepsilon_{\mathrm{risk}}\), \(B_{\mathrm{risk}}\), and \(H\) appear in Section~\ref{sec:eval:setup}.
+
+\subsection{Optional learned hosts and co-design}
+\label{sec:method:codesign}
+
+CPS wraps any host and does not require a learned policy; heuristic and model-based controllers use the same projection.
+When we optionally study a learned host, we train a standard PPO policy (optionally Lagrangian-shaped) with the Stable-Baselines~3 library~\cite{raffin2021sb3,schulman2017proximal} on content-aware observations: throughput history, buffer, spatial and temporal complexity (SI/TI), and the VMAF ladder.
+We do not propose a new RL algorithm; PPO is one optional host among others.
+The subsections above define a host-agnostic shield.
+This subsection asks a separate question: whether training inside that shield changes the policy the shield later wraps.
+By \emph{co-design} we mean combining learning with the shield during training: wrapping the training environment in CPS changes the action distribution observed by the actor--critic, so the policy can learn to propose bolder rungs that banking later trims for safety.
+To gauge the effect, we compare two policies under identical \mbox{5G} train/test provenance: one trained without the shield (shield-at-eval-only), one co-trained with CPS. Both face CPS-P at test time.
+
+\subsection{Implementation notes}
+\label{sec:method:impl}
+
+Shield and predictive-banking defaults for the primary experiments appear in Section~\ref{sec:eval:setup} (\tabref{tab:cps:hypers}).
+For the first \(W_{\mathrm{calib}}\) chunks of every episode, before the residual window supports a finite-sample quantile, the fallback scale is set to \(\rho_{\mathrm{fb}}\); that warm-up lies outside the certificate.
+Each episode has \(48\) chunks and the residual window resets at the episode boundary, so a long nominal window \(W\) need not fill within one episode.
+Empirical coverage is the fraction of steps with \(C^{\mathrm{act}}\ge\underline{C}_k\), counted over all chunks including warm-up.
+Per decision, the projection runs in \(O(L{+}H)\) over the \(L\) ladder rungs and an \(H\)-step look-ahead. Conformal-quantile upkeep on the length-\(W\) residual window costs \(O(\log W)\) per update with an ordered container (insertion, eviction, and rank lookup).
+Across \(20{,}000\) rollout decisions on a commodity CPU (\(L{=}6\), full predictive shield), the per-decision wall-clock elapsed time is \(131\,\mu\mathrm{s}\) at the median and \(310\,\mu\mathrm{s}\) at the \(99\)th percentile. This is roughly \(10^{-5}\) of a \(4\,\mathrm{s}\) chunk budget. CPS therefore runs inline, and the control loop is unaffected.
+
+% =========================================
+\section{Experimental evaluation}
+\label{sec:eval}
+
+We organize the evaluation around four research questions:
+
+\begin{itemize}
+  \item[\textbf{RQ1}] \emph{Banking vs.\ safety.} Does VMAF-knee banking reduce bitrate and rebuffering relative to conformal safety-only projection, with VMAF inside \(\pm\varepsilon\)?
+  \item[\textbf{RQ2}] \emph{Coverage.} Does empirical conformal coverage meet the finite-sample target \(1{-}\alpha\)?
+  \item[\textbf{RQ3}] \emph{Budget extensions.} Relative to the default budget \(\varepsilon\), do CPS-P or a larger static \(\varepsilon\) change bitrate and rebuffering savings?
+  \item[\textbf{RQ4}] \emph{Robustness.} Does the banking stage (banked bitrate and realized per-chunk perceptual cost) remain effective on non-monotone per-chunk ladders? Do the RQ1--RQ2 results remain stable as \(\varepsilon\) and \(\alpha\) vary?
+\end{itemize}
+A single-seed co-design study appears in Section~\ref{sec:eval:codesign}.
+
+\subsection{Experimental setup and datasets}
+\label{sec:eval:setup}
+
+The testbed is a multi-video, chunk-timescale simulator with \(N_{\mathrm{ch}}{=}48\) chunks per episode, \(T_{\mathrm{c}}{=}4\,\mathrm{s}\), and buffer cap \(B_{\max}{=}12\,\mathrm{s}\) unless noted. It replays a throughput trace chunk by chunk: for each chunk it applies the executed rung's size, computes the download time and stall from the trace throughput, and updates the buffer with Equation~\eqref{eq:buffer}. It drives twelve publicly available reference titles with session-mean VMAF ladders~\cite{li2016vmaf}: five Blender open animations~\cite{blenderfilms}---Big Buck Bunny, Tears of Steel, Sintel, Elephants Dream, and Cosmos Laundromat---and seven natural-motion Xiph DERF clips---Park Joy, Old Town Cross, Rush Hour, Into Tree, Sunflower, Kristen \& Sara, and Ducks Take Off~\cite{xiphderf}.
+We select them for ladder structure, not to cover many content genres: saturation-rich animation such as Big Buck Bunny and Tears of Steel, steep natural motion such as Park Joy and Ducks Take Off, wide-span DERF clips such as Into Tree and Old Town Cross, and mixed held-out titles such as Sintel, Cosmos Laundromat, and Kristen \& Sara for generalization checks.
+Nine titles appear in PPO co-design training; three---Sintel, Cosmos Laundromat, and Kristen \& Sara---are never seen during PPO training, to test generalization to unseen titles.
+Because CPS acts only on the observed VMAF ladder and buffer state, ladder shape---not semantic content---drives its effect. The twelve-title suite therefore spans both saturated and steep/inverted session-mean ladders, with \(\LadPctNonMonotone\%\) non-monotone.
+
+\textbf{Primary \mbox{5G} suite.} Public per-chunk \mbox{5G/mmWave} logs suitable for chunk-level ABR replay remain scarce~\cite{narayanan2021variegated,fezeu2024midband}. We therefore built a synthetic \mbox{5G} trace generator; its test traces, held out from the co-design training seeds, form the primary pool of \(\CPSepisodes\) paired episodes. The generator is configured as follows.
+Each trace lasts \(1000\,\mathrm{s}\) at a baseline of \(9000\,\mathrm{kbps}\). Every \(40\,\mathrm{s}\), starting at offset \(20+(i \bmod M)\), a \(4\,\mathrm{s}\) interval is replaced by a dip drawn uniformly from \([500,1200]\,\mathrm{kbps}\) on the test set and from \([400,1300]\,\mathrm{kbps}\) on the training set. The trace is then scaled by an independent factor from \(\mathrm{U}(0.85,1.15)\) and clipped to \([80,50000]\,\mathrm{kbps}\).
+The test set contains \(50\) traces (seed \(42\), \(M{=}17\)). The training set contains \(80\) traces (seed \(7000\), \(M{=}23\)); here \(i\) indexes the dip and \(M\) is a trace-generator offset period, unrelated to the buffer margin \(m\).
+The broadband suite below provides a real-trace counterpart.
+Train and test trace pools come from the same generator with different seeds and dip ranges, so they are seed-disjoint rather than source-disjoint. Co-design policies train on the training pool alone and face held-out test seeds.
+
+\textbf{Broadband suite.} The broadband suite uses real-measured traces: the Federal Communications Commission (FCC) Measuring Broadband America (MBA) fixed-line logs~\cite{fcc2015mba} and the Norway/Nornet mobile-broadband mobility logs~\cite{kvalbein2014}, with 27 held-out test traces that are source-disjoint from training. Both are widely used public datasets in ABR research. They provide a real-network counterpart to the primary \mbox{5G} suite and show where banking offers limited headroom.
+
+\textbf{Hosts.} Five host families cover the ABR design space: bitrate-greedy, always at the top rung; BBA; BOLA, the Lyapunov buffer-based rule of the dash.js reference player~\cite{spiteri2018bola,spiteri2018dashjs}; robust model-predictive control via RobustMPC~\cite{yin2015control}; and two PPO policies: a content-aware policy that also observes SI/TI and the VMAF ladder (Section~\ref{sec:method:codesign}), and a content-blind Pensieve-style policy without these content features~\cite{mao2017neural}. RobustMPC is a five-segment planner over a throughput prediction discounted by recent worst-case error. CPS carries no host bias: one wrapper, applied at inference across all five families, tuned to none of them.
+
+\textbf{Evaluation configurations and paired design.} We call each shield configuration an \emph{arm}. Every host rolls out \textsc{Raw}, \textsc{Safety}, and \textsc{Certified} on identical Python seeds---the same video--trace pairs.
+\textsc{Raw} runs \(a^{\mathrm{raw}}\) unshielded.
+\textsc{Safety} runs Algorithm~\ref{alg:cps} with banking switched off by setting \(j^{\mathrm{knee}}{=}a\), so only conformal feasibility remains.
+\textsc{Certified} runs the full CPS (banking plus feasibility).
+Pairing fixes the random seed and the \((\text{video},\text{trace})\) assignment across arms, so metrics differ only because of shielding, not because of resampling.
+In paired evaluations every method observes the same trace \(C^{\mathrm{tr}}_k\).
+Each paired contrast is the per-episode metric difference on the same \((\text{video},\text{trace})\) seed across arms; for example, the \textsc{Certified}-arm value minus the \textsc{Safety}-arm value on the same episode.
+
+\textbf{Metrics and statistical tests.} We report mean delivered bitrate, mean rebuffering per episode, stall-free rate, mean VMAF, intervention rate, and empirical conformal coverage. Significance rests on paired Wilcoxon signed-rank tests with zero-method \texttt{zsplit} and on TOST for equivalence of VMAF within \(\pm\varepsilon{=}\CPSepsilon\)~\cite{lakens2017equivalence}.
+\tabref{tab:cps:hypers} lists the primary-\mbox{5G} defaults, including \(\alpha{=}\CPSalpha\) with coverage target \(\CPScovTarget\), \(\varepsilon{=}\CPSepsilon\), warm-up \(W_{\mathrm{calib}}{=}20\) with fallback \(\rho_{\mathrm{fb}}{=}0.80\), and the CPS-P risk settings.
+We set \(\varepsilon{=}\CPSepsilon\) as both the knee budget and the TOST margin.
+
+\begin{cps@table}
+    \caption{CPS default hyperparameters (primary \mbox{5G} suite).}
+    \label{tab:cps:hypers}
+    \centering
+    \evaltable{%
+    \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Parameter} & \textbf{Value} \\
+    \midrule
+    Perceptual budget \(\varepsilon\) & \(\CPSepsilon\) VMAF point \\
+    Conformal miscoverage \(\alpha\) & \(\CPSalpha\); target coverage \(\CPScovTarget\) \\
+    Residual window \(W\) / warm-up \(W_{\mathrm{calib}}\) & 200 / 20 \\
+    Fallback scale \(\rho_{\mathrm{fb}}\) / predictor \(\kappa\) & 0.80 / 5 \\
+    Buffer margin \(m\) / critical \(B_{\mathrm{crit}}\) & \(0.5\,\mathrm{s}\) / \(0.3\,\mathrm{s}\) \\
+    Risk budget \(\varepsilon_{\mathrm{risk}}\) / \(B_{\mathrm{risk}}\) & \(4.0\) / \(8\,\mathrm{s}\) \\
+    Look-ahead horizon \(H\) / forecast quantile & \(6\) / 0.2 \\
+    \bottomrule
+    \end{tabular}%
+    }
+    \tablenote{\(W{=}200\) is a nominal residual capacity; each episode has \(48\) chunks and resets the window, so at most \(47\) residuals are available within an episode. Look-ahead uses \(H{=}6\) steps in all reported CPS-P runs.}
+\end{cps@table}
+
+Logged QoE (Equation~\eqref{eq:qoe-rep}) uses \(\mu{=}1.0\) per absolute VMAF-point change and \(\beta{=}4.3\) per stall second throughout the shared simulator; with \(\beta{=}4.3\), one stall second costs only 4.3 VMAF points.
+One VMAF point is a small fraction of typical adjacent-rung and top-rung gaps on our ladders in \tabref{tab:ladder:spacing} and is conservative relative to perceptually aware per-title encoding practice~\cite{menon2022perceptual}. It is an engineering design choice aligned with Equation~\eqref{eq:knee}, not a preregistered clinical equivalence margin~\cite{lakens2017equivalence}. Because the knee rule and this TOST both use the session-mean ladder, alignment of the session-mean VMAF change with \(\pm\varepsilon\) is expected; Section~\ref{sec:eval:perchunk} therefore validates budget adherence independently on true per-chunk VMAF.
+The scalar in Equation~\eqref{eq:qoe-rep} is only the logging definition. Only the co-design sweep uses the linear score \(\mathrm{QoE}(w)\) defined in Section~\ref{sec:eval:codesign}.
+The \(p\)-values we quote for the primary arms are raw and two-sided Wilcoxon signed-rank tests with zero-method \texttt{zsplit}.
+When bitrate and rebuffering share the same signed-rank statistic on a host---for example, greedy certified--safety \(p{=}\CPSGreedyPBWcs\) for both---the identity is mechanical, not a reporting error.
+The co-design values \(\CPScoPVM\) and \(\CPScoPReb\) equal \(1/20{,}000\), the floor of a \(20{,}000\)-draw sign-flip test; they are not Wilcoxon tail probabilities.
+The bootstrap intervals in Section~\ref{sec:eval:codesign} are the magnitude statement for that contrast.
+For the eight primary certified--safety bitrate and rebuffering contrasts across four non-learned hosts, the largest raw \(p\) is \(\CPSGreedyPBWcs\); all eight remain below the Holm--Bonferroni threshold at family-wise \(0.05\).
+One caveat concerns content diversity. Each episode is one \((\text{video},\text{trace})\) pair: the video is drawn uniformly from the twelve titles and the trace from the held-out pool. Observations therefore cluster by title, and effective independent-content diversity is twelve, not \(\CPSepisodes\). We treat the reported \(p\)-values as within-pair evidence on that paired design, not as evidence from \(204\) independent titles.
+
+\subsection{Model-agnostic banking on \mbox{5G} (RQ1--RQ2)}
+\label{sec:eval:main}
+
+\tabref{tab:cps:full} reports absolute metrics for all three arms---\textsc{Raw}, \textsc{Safety}, and \textsc{Certified}---on the primary \mbox{5G} test traces for five host families: greedy, BBA, BOLA, RobustMPC, and a Pensieve-style negative control.
+The table lists the episode means and significance tests for every arm.
+Banking behaves consistently across all four non-learned hosts on the twelve-title suite. Relative to \textsc{Safety}, the \textsc{Certified} arm saves 4.5\%, 4.1\%, 4.1\%, and 3.8\% bitrate on greedy, BBA, BOLA, and RobustMPC, respectively, and reduces rebuffering by 9.3\%, 8.9\%, 8.9\%, and 9.2\% (greedy rebuffering Wilcoxon \(p{=}\CPSGreedyPRebCs\)).
+\figref{fig:cps:overview} summarizes only the \textsc{Certified}-vs.-\textsc{Safety} contrast and omits \textsc{Raw}.
+On steep, non-saturated ladders the absolute savings stay modest. This is what the mechanism predicts: banking pays off only where the ladder saturates. Every host nevertheless remains perceptually near-lossless.
+Partitioning the greedy certified--safety contrast by session-mean top-rung VMAF gain makes that dependence explicit (\tabref{tab:ladder:spacing}). On titles with top gain at most \(2\) VMAF points---Big Buck Bunny, Sintel, Sunflower, and Kristen \& Sara, \(n{=}60\) episodes---banking saves \(4.6\%\) bitrate and \(9.9\%\) rebuffering. On steep titles with top gain at least \(9\)---Park Joy, Ducks Take Off, and Into Tree, \(n{=}51\)---the same contrast shrinks to \(2.1\%\) bitrate and \(3.7\%\) rebuffering. The pooled greedy headline therefore mixes both regimes rather than reflecting a saturation-only subset, saving 4.5\% bitrate and 9.3\% rebuffering.
+Mean VMAF differences are perceptually negligible, at \(\CPSGreedyVMcs\), \(\CPSBbaVMcs\), \(\CPSBolaVMcs\), and \(\CPSMpcVMcs\) points across greedy, BBA, BOLA, and RobustMPC, with every value inside \(\pm\varepsilon\) by TOST.
+
+
+Safety and banking contribute differently. On greedy, mean rebuffering per \(\sim\!192\,\mathrm{s}\) episode of \(48\) chunks falls from \(\CPSGreedyRawReb\)\,s for \textsc{Raw} to \(\CPSGreedySafReb\)\,s for \textsc{Safety} and \(\CPSGreedyCertReb\)\,s for \textsc{Certified}. Against \textsc{Raw}, certified greedy reduces rebuffering by 55.5\%, versus 51.0\% for BBA. Conformal safety removes most of the stall time relative to \textsc{Raw}; banking adds the certified--safety margin on top.
+\figref{fig:cps:tradeoff} and \figref{fig:cps:cdf} show per-episode operating points and rebuffering Cumulative Distribution Functions (CDFs) for greedy and BBA.
+
+Coverage follows a distinct pattern on the primary \mbox{5G} pool.
+The inclusive empirical coverage---averaging every chunk, including the \(W_{\mathrm{calib}}\) fallback warm-up---is \(\CPSGreedyCov\) for greedy and \(\CPSBbaCov\) for BBA against a \(\CPScovTarget\) target.
+On the greedy certified arm, warm-up chunks alone cover at \(\CPSGreedyCovWarm\) and post--warm-up chunks at \(\CPSGreedyCovPost\), so the headline value \(\CPSGreedyCov\) is not a pure finite-sample certificate rate.
+Because coverage depends on the throughput trace and the conformal calibrator rather than the base policy, the inclusive rate equals \(\CPSGreedyCov\) across every host and shield variant on the \mbox{5G} test set; see \figref{fig:cps:coverage}.
+Proposition~\ref{prop:feas} is a per-chunk probabilistic certificate, not a per-episode stall-free one. On the greedy certified arm we attribute every second of residual rebuffering on the primary \mbox{5G} pool of \(\CPSepisodes\) paired episodes to an exclusive cause. When the residual window is shorter than the conformal warm-up of \(W_{\mathrm{calib}}{=}20\), \(\CPSGreedyStallColdPct\%\) of that stall time occurs; the bound then uses the fixed fallback scale and is not the finite-sample certificate. After warm-up, \(\CPSGreedyStallMissPct\%\) of residual stall time falls on chunks where realized throughput misses its conformal lower bound. A further \(\CPSGreedyStallHeldPct\%\) falls on chunks where the bound holds, matching Proposition~\ref{prop:feas}. The \(B_k\le B_{\mathrm{crit}}\) emergency path contributes \(\CPSGreedyStallEmergPct\%\) of stall seconds on this suite.
+\textsc{Safety} still leaves mean rebuffering of \(\CPSGreedySafReb\,\mathrm{s}\) on a \(\sim\!192\,\mathrm{s}\) greedy episode, against \(\CPSGreedyRawReb\,\mathrm{s}\) for \textsc{Raw}; most of the residual certified stall mass sits in the warm-up path above.
+Pensieve, the negative control, degrades to near-floor bitrates with near-zero stalls, so CPS rarely intervenes. Banking cannot rescue a policy that never requested saturated rungs.
+
+
+
+Greedy proposes the top rung every time, so nearly every banking downshift or feasibility repair appears as an intervention; its intervention rate in \tabref{tab:cps:full} is therefore high. The rate gauges how far a host sits from the certified operating point, not how much of the outcome to attribute to the shield. This is why we run the model-agnostic contrast across hosts spanning the spectrum.
+
+The certified intervention rate falls as the host becomes more conservative: \(\CPSGreedyCertInt\%\) for greedy, \(\CPSBbaCertInt\%\) for BBA, \(\CPSBolaCertInt\%\) for BOLA, \(\CPSMpcCertInt\%\) for RobustMPC, and \(\CPSPenCertInt\%\) for the Pensieve-style host. The sharper the base policy, the lighter the shield's load. Coverage nevertheless holds at \(\CPSGreedyCov\) throughout. The certified metrics therefore depend increasingly on the base policy's own decisions, and the shield acts only where banking headroom remains. For RQ1 and RQ2 the message is simple: on every non-learned host, banking saves bitrate and cuts rebuffering with mean VMAF inside \(\pm\varepsilon\).
+Inclusive coverage meets \(\CPScovTarget\) on the primary \mbox{5G} pool; the post--warm-up rate \(\CPSGreedyCovPost\) is the closer operational check of the finite-sample certificate.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_cps_overview.pdf}
+    \caption{Certified vs.\ safety banking (\(\CPSepisodes\) episodes, \(\varepsilon{=}\CPSepsilon\)). Bars: bitrate saved (\%), rebuffering reduced (\%) (left axis), and mean VMAF cost, \textsc{Safety} minus \textsc{Certified} in VMAF points, floored at 0 (right axis), for two \mbox{5G} hosts and one broadband (BB) host.}
+    \label{fig:cps:overview}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_cps_coverage.pdf}
+    \caption{Per-episode conformal coverage of the certified arm (\(\alpha{=}\CPSalpha\); dashed target \(\CPScovTarget\)). The distribution is host-invariant (RQ2).}
+    \label{fig:cps:coverage}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_cps_tradeoff.pdf}
+    \caption{Per-episode operating points on paired \mbox{5G} seeds. (a)~Greedy. (b)~BBA. Diamonds mark arm means.}
+    \label{fig:cps:tradeoff}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_cps_cdf_reb.pdf}
+    \caption{Empirical CDFs of episode rebuffering. (a)~Greedy. (b)~BBA.}
+    \label{fig:cps:cdf}
+\end{figure}
+
+\begin{cps@table}
+    \caption{Paired arms on primary \mbox{5G} test traces (\(\CPSepisodes\) episodes, \(\varepsilon{=}\CPSepsilon\), \(\alpha{=}\CPSalpha\)). Reb.\ is mean rebuffering per episode; Cover.\ is empirical conformal coverage; Interv.\ is shield intervention rate.}
+    \label{tab:cps:full}
+    \centering
+    \evaltable{\input{tables/table_cps_full.tex}}
+    \tablenote{Certified--safety Wilcoxon: greedy bitrate \(p{=}\CPSGreedyPBWcs\), rebuffering \(p{=}\CPSGreedyPRebCs\); BBA bitrate \(p{=}\CPSBbaPBWcs\), rebuffering \(p{=}\CPSBbaPRebCs\). CPS-P predictive banking defaults in \tabref{tab:cps:hypers}.}
+\end{cps@table}
+
+\subsection{Predictive banking and broadband boundary (RQ3)}
+\label{sec:eval:improved}
+
+With the risk-aware budget \(\varepsilon_{\mathrm{eff}}\) of Equation~\eqref{eq:eps-eff} and dip forecasting enabled under CPS-P, which starts from the default base budget \(\varepsilon{=}\CPSepsilon\) and widens it up to \(\varepsilon_{\mathrm{risk}}{=}4\) VMAF points, certified banking vs.\ safety reaches a 14.6\% bitrate reduction for greedy and 12.5\% for BBA, and cuts rebuffering by 12.6\% and 13.0\%, respectively, at mean VMAF changes of \(\CPSGreedyImpVMcs\) and \(\CPSBbaImpVMcs\). Both contrasts are against the same \textsc{Safety} arm; with a fixed \(\varepsilon{=}\CPSepsilon\), the corresponding bitrate savings are 4.5\% and 4.1\% (\tabref{tab:cps:full}).
+A static budget \(\varepsilon{=}2\) on the same greedy host saves 14.4\% bitrate and 30.8\% rebuffering at a mean VMAF change of \(-0.17\) (\tabref{tab:abl:eps}), compared with 14.6\%, 12.6\%, and \(\CPSGreedyImpVMcs\) under CPS-P.
+At a nearly identical bitrate saving, static \(\varepsilon{=}2\) therefore achieves a larger rebuffering reduction at a slightly smaller mean VMAF cost than CPS-P in this evaluation.
+CPS-P differs in how it spends the budget: it keeps \(\varepsilon{=}\CPSepsilon\) while the buffer is comfortable and widens toward \(\varepsilon_{\mathrm{risk}}\) only under forecast risk. We did not measure quality separately in stable periods, so the present data do not establish an advantage of CPS-P over a well-chosen static budget.
+
+The broadband suite marks the edge of these gains. On source-disjoint real-measured broadband traces from FCC MBA and Norway/Nornet~\cite{fcc2015mba,kvalbein2014}, spanning 27 held-out traces and \(\CPSepisodes\) paired video--trace episodes, greedy certified--safety bitrate savings shrink to 0.9\%; see \tabref{tab:cps:bb}. Top rungs are seldom jointly feasible and saturated, so banking has little remaining headroom.
+Even so, safety vs.\ raw still reduces rebuffering by 98.7\%. Raw greedy already stalls for most of each broadband session, as in \tabref{tab:cps:bb}.
+Because capacity limits keep saturated top rungs out of the feasible set, the conformal feasibility layer carries the main control burden.
+On these 27 held-out traces at \(\alpha{=}\CPSalpha\), empirical conformal coverage is \(\CPSbbCov\), near the \(\CPScovTarget\) target. The primary \mbox{5G} pool, over \(\CPSepisodes\) episodes, reaches \(\CPSGreedyCov\); see \tabref{tab:cps:full} and \figref{fig:cps:coverage}.
+The ``BB greedy'' group in \figref{fig:cps:overview} makes the regime split explicit: banking savings are largest on the primary \mbox{5G} suite.
+This split follows from the mechanism: CPS banking pays off precisely when the ladder knee sits within reach, and broadband places it out of reach.
+
+\begin{cps@table}
+  \centering
+  \caption{Paired greedy arms on real broadband traces (\(\CPSepisodes\) episodes over 27 held-out FCC/Norway traces, \(\varepsilon{=}\CPSepsilon\), \(\alpha{=}\CPSalpha\)).}
+  \label{tab:cps:bb}
+  \small
+  \evaltable{\input{tables/table_cps_broadband.tex}}
+\end{cps@table}
+
+\paragraph{Coverage under injected drift}
+To stress-test exchangeability without new traces, we replay the primary \mbox{5G} pool with a mid-episode throughput shock on chunks \(28\)--\(37\): multiply trace throughput by \(0.3\), mimicking a sudden LOS loss or an NLOS dip.
+We report two related views, neither of which should be confused with the inclusive headline \(\CPSGreedyCov\).
+First, phase-mean coverage over valid chunks after a \(20\)-chunk conformal warm-up is \(0.928\) pre-shock with \(n{=}1{,}632\), \(0.929\) during the shock with \(n{=}2{,}040\), and \(0.944\) post-shock with \(n{=}2{,}040\), all against the \(0.90\) target on the greedy certified arm over \(\CPSepisodes\) episodes.
+Those phase averages therefore stay at or above the target through the shock.
+Second, \figref{fig:cps:coverage_drift} plots episode-averaged \emph{rolling} coverage with window \(W{=}20\) chunks under the same shock protocol.
+That rolling curve starts near \(0.69\) in the grey warm-up band because each window still mixes fallback residuals; it is a different aggregation from the inclusive per-chunk mean \(\CPSGreedyCov\) and from the post--warm-up rate \(\CPSGreedyCovPost\) on the unshocked primary pool.
+The sliding residual window then keeps phase-mean coverage on target after calibration, consistent with Section~\ref{sec:method:conformal}.
+
+\begin{figure}[!htbp]
+    \centering
+    \evalfig{figures/fig_cps_coverage_drift.pdf}
+    \caption{Rolling coverage (\(W{=}20\)) under a \(0.3\times\) throughput shock (red, chunks \(28\)--\(37\)). Grey: warm-up, rolling mean near \(0.69\). Dashed: target \(\CPScovTarget\). Not the inclusive coverage \(\CPSGreedyCov\).}
+    \label{fig:cps:coverage_drift}
+\end{figure}
+
+\subsection{Learned hosts and co-design}
+\label{sec:eval:codesign}
+
+We report two PPO settings separately. The primary host is a content-aware policy trained on source-disjoint broadband traces and evaluated, without further training, on \mbox{5G}---the model-agnostic deployment case (\tabref{tab:cps:ppo}). The co-design pair comprises two policies trained on matched \mbox{5G} traces---one shield-at-eval-only, one co-trained with CPS in the loop---compared on their certified arms (\tabref{tab:cps:codesign} and \figref{fig:cps:codesign}).
+On the primary broadband-trained policy, certified banking vs.\ safety saves 35.3\% bitrate and reduces rebuffering by 79.3\%, with \(p{=}\CPSPropPRebCs\), at VMAF \(\Delta{=}\CPSPropVMcs\) and TOST within \(\pm\varepsilon\).
+As shown in \tabref{tab:cps:ppo}, the bitrate cut exceeds that of greedy or BBA because the \textsc{Raw} mean bitrate is \(1589\,\mathrm{kb/s}\), not the top rung. Safety already lowers it to \(1278\,\mathrm{kb/s}\). Certified banking then lowers it to \(827\,\mathrm{kb/s}\).
+The \(35.3\%\) saving is thus measured from this mid-ladder \textsc{Safety} operating point, so banking is not confined to saturated upper rungs.
+On more conservative hosts such as PPO it also exploits mid-ladder flats and inversions (Section~\ref{sec:system:ladder}) to cut rebuffering by \(79.3\%\) inside the perceptual budget.
+Under CPS-P, banking saves 21.9\% bitrate and reduces rebuffering by 29.6\%, mirroring the predictive-banking gains on non-learned hosts in Section~\ref{sec:eval:improved}.
+
+\begin{cps@table}
+  \centering
+  \caption{Paired arms for the primary PPO host on the \mbox{5G} test pool (broadband-trained policy, \(\CPSepisodes\) episodes, \(\varepsilon{=}\CPSepsilon\), \(\alpha{=}\CPSalpha\)). Certified vs.\ safety: \(\CPSPropBWcs\%\) bitrate, \(\CPSPropRebCs\%\) rebuffering.}
+  \label{tab:cps:ppo}
+  \small
+  \evaltable{\input{tables/table_cps_ppo_primary.tex}}
+\end{cps@table}
+
+\emph{Co-design.} Both policies are trained on matched \mbox{5G} traces with a seed-disjoint test. Under CPS-P at eval, the co-trained policy's certified arm attains VMAF \(\CPScoCpsVM\) and bitrate \(\CPScoCpsBr\)\,kb/s, against \(\CPScoRegVM\)/\(\CPScoRegBr\) for shield-at-eval-only operation.
+The \(\Delta\) row in \tabref{tab:cps:codesign} is the difference of those certified-arm means, \(+\CPScoDVM\) VMAF and \(+\CPScoDReb\)\,s rebuffering, and it matches the rows above: co-trained minus shield-at-eval-only VMAF, \(\CPScoCpsVM-\CPScoRegVM\), and rebuffering, \(\CPScoCpsReb-\CPScoRegReb\)\,s.
+The fidelity gain can be weighed against its stall cost through \(\mathrm{QoE}(w)=\overline{\mathrm{VMAF}}-w\cdot\mathrm{rebuffer(s)}\). The mean-QoE crossover is \(w^{\star}{=}\CPScoWstar\) VMAF points per second, the ratio of the \(\Delta\) row entries: co-design favors fidelity-oriented weights \(w<w^{\star}\); shield-at-eval-only prevails where stall aversion is stronger.
+Intuitively, \(w^{\star}\) is the stall penalty at which the co-trained fidelity gain and extra rebuffering exactly balance in mean QoE; weights above \(w^{\star}\) favor the shield-at-eval-only policy.
+Both reported \(p\)-values equal \(\CPScoPVM\); that value is \(1/20{,}000\), the floor of the sign-flip test, not a Wilcoxon tail probability. The bootstrap Confidence Interval (CI) \([\CPScoDVMlo,\CPScoDVMhi]\) is the magnitude statement, with stall cost \([\CPScoDRebLo,\CPScoDRebHi]\)\,s and crossover \([\CPScoWstarLo,\CPScoWstarHi]\); the median crossover is \(\CPScoWstarMed\), and \(\Delta\)VMAF is positive in \(\CPScoDVMposPct\%\) of resamples.
+Co-design uses a single training seed per policy; see Section~\ref{sec:limits}.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_cps_codesign.pdf}
+    \caption{Co-design on the \mbox{5G} test (certified arm, CPS-P). (a)~VMAF--rebuffer points (diamonds: means). (b)~Mean \(\Delta\mathrm{QoE}(w)\); dashed line: \(w^{\star}{=}\CPScoWstar\).}
+    \label{fig:cps:codesign}
+\end{figure}
+
+\begin{cps@table}
+    \caption{Co-design on \mbox{5G} test (certified arm, CPS-P at eval).}
+    \label{tab:cps:codesign}
+    \centering
+    \evaltable{\input{tables/table_cps_codesign.tex}}
+    \tablenote{The \(\Delta\) row equals the certified-arm difference in the rows above. Sign-flip test floor \(p{=}\CPScoPVM\) (VMAF) and \(p{=}\CPScoPReb\) (rebuffering), each \(1/20{,}000\), not Wilcoxon tails; bootstrap \(\Delta\)VMAF CI \([\CPScoDVMlo,\CPScoDVMhi]\) over \(\CPScoBootN\) episodes.}
+\end{cps@table}
+
+\subsection{Per-chunk (non-monotone) ladder ablation (RQ4)}
+\label{sec:eval:perchunk}
+
+The headline runs apply the knee rule to each title's pooled session-mean ladder in \tabref{tab:ladder:spacing}: four of twelve ladders are fully nondecreasing, while the other eight are non-monotone only at mid-ladder from \(750\) to \(1200\,\mathrm{kbps}\). The top three rungs remain nondecreasing on every title. We therefore test whether banking remains effective on the actual per-chunk ladders, which are often non-monotone: \(\PCinvPct\%\) of the \(\PCnChunks\) chunks hold at least one inverted adjacent pair; see \figref{fig:ladder}.
+The per-chunk ablation uses frame-level VMAF logs on Big Buck Bunny, Tears of Steel, and Sintel, the same three titles as \figref{fig:ladder}. The ablation reads \(\PCnChunks\) chunks from the aggregated per-chunk export; the figure aggregates \(\LadNChunks\) chunks from raw per-frame JSON, so the two counts differ.
+To test this, we replay the banking stage on the per-chunk logs. We compare a shield that sees only the pooled ladder with one that sees the per-chunk ladder; see \tabref{tab:perchunk} and \figref{fig:cps:perchunk}. Banking alone depends on VMAF; the feasibility projection ignores it and stays identical in both cases, which isolates the effect of the pooling simplification.
+
+Three findings hold at the default \(\varepsilon{=}\PCeps\), spanning correctness, savings, and pooling error.
+First, the knee rule remains well defined on inverted ladders and banks more, not less: mean saved bitrate is \(\PCbwPerchunk\%\) per-chunk against \(\PCbwPooled\%\) pooled, because a lower rung that inverts above the proposal satisfies the budget immediately---inversions widen banking opportunity rather than breaking the rule.
+Second, a per-chunk shield keeps realized per-chunk perceptual cost within budget by construction, with mean \(\PCcostPerchunk\) VMAF points and never above \(\varepsilon\), so the ablation validates chunk-wise enforcement when true ladders are available.
+Third, pooling is not free. Judged against the actual per-chunk VMAF, the pooled-ladder shield overruns the budget on \(\PCviolPooled\%\) of chunks, with mean cost \(\PCcostPooled\) points, which explains why session-mean evaluation can understate perceptual spend even when banking bytes look similar.
+
+
+Taken together, the pooled-ladder headline numbers are, if anything, conservative with respect to banking savings.
+Per-chunk operation is sound: it eliminates residual budget violations at the cost of a per-chunk VMAF feed, and it aligns the content-diversity motivation with the pooled evaluation.
+
+\begin{cps@table}
+  \caption{Banking-stage ablation on real per-chunk VMAF ladders (greedy proposal, \(\PCnChunks\) chunks); the feasibility stage is identical in both shields.}
+  \label{tab:perchunk}
+  \centering
+  \evaltable{\input{tables/table_perchunk_ablation.tex}}
+\end{cps@table}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig_cps_perchunk.pdf}
+  \caption{Per-chunk vs.\ pooled banking vs.\ \(\varepsilon\). (a)~Banked bitrate. (b)~Realized per-chunk perceptual cost.}
+  \label{fig:cps:perchunk}
+\end{figure}
+
+\subsection{Sensitivity to \texorpdfstring{\(\varepsilon\)}{epsilon} and \texorpdfstring{\(\alpha\)}{alpha} (RQ4)}
+\label{sec:eval:sensitivity}
+
+The headline runs fix the pair at \(\varepsilon{=}\CPSepsilon\) and \(\alpha{=}\CPSalpha\). \tabref{tab:abl:eps}, \tabref{tab:abl:alpha}, and \figref{fig:cps:ablation} vary one parameter at a time on the greedy host and the primary \mbox{5G} pool of \(\CPSepisodes\) paired episodes over the twelve-title roster. The default cell with \(\varepsilon{=}\CPSepsilon\) and \(\alpha{=}\CPSalpha\) is the same evaluation as \tabref{tab:cps:full}; the other cells are a one-parameter sensitivity sweep under the same seeding protocol.
+We first consider the perceptual budget. Sweeping \(\varepsilon\in\{\AblEpsLo,\dots,\AblEpsHi\}\) at \(\alpha{=}\CPSalpha\) trades banking for fidelity.
+The bitrate saved relative to the \textsc{Safety} arm rises from 2.0\% to 24.6\%, while the mean VMAF change remains negligible---at most \(\AblVmMaxAbs\) points---and never leaves the matching \(\pm\varepsilon\) envelope. Wider budgets therefore trade fidelity slack for banking headroom in a predictable way.
+Empirical conformal coverage remains invariant with \(\varepsilon\). Coverage depends on the throughput trace and calibrator alone, not the banking budget, which shows that banking and the feasibility certificate operate independently.
+We next consider miscoverage. Sweeping \(\alpha\in\{0.05,0.10,0.20\}\) at \(\varepsilon{=}\CPSepsilon\) on the same primary \mbox{5G} pool moves empirical coverage in step with the finite-sample target \(1{-}\alpha\): coverage is \(\AblCovMax\), \(0.919\), and \(\AblCovMin\) for targets \(0.95\), \(0.90\) (default), and \(0.80\), respectively.
+Tightening \(\alpha\) raises both coverage and the intervention rate; loosening it lowers both, as the \((n{+}1)\) construction predicts.
+At \(\alpha{=}0.05\) the mean is \(0.945\), marginally below the \(0.95\) target over \(\CPSepisodes\) paired episodes; Section~\ref{sec:method:conformal} explains why short calibration windows erode finite-sample coverage. The default operating point therefore lies on a smooth, well-behaved frontier rather than a narrowly tuned optimum, with headline savings stable once \(\varepsilon\) and \(\alpha\) are fixed.
+
+\begin{cps@table}
+  \centering
+  \caption{Sensitivity to the perceptual budget \(\varepsilon\) (greedy host, \mbox{5G} test, \(\alpha{=}\CPSalpha\), certified vs.\ safety). The \(\varepsilon{=}\CPSepsilon\) row is the headline run of \tabref{tab:cps:full}.}
+  \label{tab:abl:eps}
+  \small
+  \evaltable{\input{tables/table_ablation_eps.tex}}
+\end{cps@table}
+
+\begin{cps@table}
+  \centering
+  \caption{Sensitivity to the conformal miscoverage \(\alpha\) (greedy host, \mbox{5G} test, \(\varepsilon{=}\CPSepsilon\)). The \(\alpha{=}\CPSalpha\) row is the headline run of \tabref{tab:cps:full}.}
+  \label{tab:abl:alpha}
+  \small
+  \evaltable{\input{tables/table_ablation_alpha.tex}}
+\end{cps@table}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig_cps_ablation.pdf}
+  \caption{Sensitivity to \(\varepsilon\) and \(\alpha\). (a)~Bitrate saved as \(\varepsilon\) grows (\(\alpha{=}\CPSalpha\)). (b)~Coverage vs.\ \(1{-}\alpha\) (\(\varepsilon{=}\CPSepsilon\)).}
+  \label{fig:cps:ablation}
+\end{figure}
+
+% =========================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented CPS, a conformal shielding layer for client-side ABR. It attaches to an existing ABR controller as a lightweight wrapper, needs no retraining, and can also wrap a learned policy. CPS combines three parts: bandwidth banking at the VMAF knee, an online conformal throughput lower bound with finite-sample coverage under residual exchangeability, and a certified buffer-feasibility test.
+We evaluated CPS on \(\CPSepisodes\) paired \mbox{5G} episodes from twelve titles with diverse ladders. Relative to the safety-only conformal projection, banking lowered delivered bitrate by 3.8--4.5\% and rebuffering by 8.9--9.3\%. These savings held for every non-learned host to which CPS was applied, from greedy to RobustMPC. Mean VMAF stayed inside the tolerance \(\pm\CPSepsilon\) VMAF points. Empirical coverage of the throughput lower bound was \(\CPSGreedyCov\), against a target of \(\CPScovTarget\), including warm-up chunks that used the fallback scale.
+On the primary \mbox{5G} suite, conformal safety cut mean greedy rebuffering from \(\CPSGreedyRawReb\)\,s to \(\CPSGreedySafReb\)\,s per \(\sim\!192\,\mathrm{s}\) episode. Certified banking trimmed it further to \(\CPSGreedyCertReb\)\,s. Those gains accrued where session-mean ladders saturated at the top and the host requested those rungs.
+Optional CPS-P and static budget sweeps (Sections~\ref{sec:eval:improved} and~\ref{sec:eval:sensitivity}) showed that widening \(\varepsilon\) can deepen bitrate savings.
+At a comparable bitrate saving, static \(\varepsilon{=}2\) cut greedy rebuffering more than CPS-P (30.8\% vs.\ 12.6\%) at a slightly smaller mean VMAF cost; CPS-P's selective widening showed no measurable advantage on these metrics.
+Two regimes appeared. Banking supplied the savings while the ladder knee lay inside the observable operating range. Under broadband stress, the knee moved beyond that range, and the feasibility projection accounted for the stall reduction relative to raw greedy.
+A single-seed experiment co-trained PPO with CPS in the loop (Section~\ref{sec:eval:codesign}). It gained \(+\CPScoDVM\) VMAF at \(+\CPScoDReb\)\,s of rebuffering, with a QoE crossover weight \(w^{\star}{=}\CPScoWstar\).
+Spare perceptual quality therefore becomes a budget that the client can measure and spend under a finite-sample guarantee.
+
+\paragraph{Limitations and future work}
+\label{sec:limits}
+Coverage holds at the \(1{-}\alpha\) level when calibration residuals are exchangeable (Section~\ref{sec:method:conformal}).
+The present evaluation used a chunk-level simulator without transport-stack or CDN dynamics~\cite{narayanan2021variegated}, a synthetic \mbox{5G} suite, real FCC and Norway/Nornet broadband traces~\cite{fcc2015mba,kvalbein2014}, twelve public titles~\cite{blenderfilms,xiphderf}, a VMAF QoE surrogate~\cite{seufert2015survey}, a TOST margin equal to \(\varepsilon{=}\CPSepsilon\)~\cite{menon2022perceptual,lakens2017equivalence}, and one co-design training seed per policy (\tabref{tab:cps:codesign}).
+Empirical coverage was \(\CPSbbCov\) on the 27 broadband traces at \(\alpha{=}\CPSalpha\) and \(0.945\) vs.\ \(0.95\) on the primary \mbox{5G} suite at \(\alpha{=}0.05\) (\tabref{tab:abl:alpha}); savings scaled with ladder saturation and host aggressiveness (\tabref{tab:ladder:spacing}; Section~\ref{sec:eval:main}).
+These bounds motivate the next steps: deployment in a production player such as \texttt{dash.js}~\cite{spiteri2018dashjs}, weighted conformal updates under transport-layer (TCP/QUIC) drift~\cite{barber2023beyond,angelopoulos2024online}, multi-seed RL co-training, packet-level or field \mbox{5G} evaluation, Comyco-style learned hosts, Conditional Value-at-Risk (CVaR) objectives~\cite{rockafellar2000}, and telemetry-driven \(\varepsilon\) and \(\alpha\).
+The feasibility check must also use the player's delayed buffer signal inside a soft real-time budget beside the ABR loop; the chunk-level micro-benchmark is \(\sim\!130\,\mu\mathrm{s}\) (median).
+
+% --- Back matter (Computer Networks / Elsevier: acknowledgements and declarations immediately before the reference list) ---
+\section*{Data availability}
+The CPS implementation, chunk-level simulator, evaluation scripts, per-title session-mean VMAF ladders, and per-episode result exports underlying all tables and figures are available from the corresponding author upon reasonable request.
+A persistent archive with a DOI is planned for deposit upon acceptance.
+The FCC Measuring Broadband America and Norway/Nornet throughput traces used in the broadband suite are third-party public datasets available from their original providers~\cite{fcc2015mba,kvalbein2014}.
+The synthetic \mbox{5G} trace generator and configuration files used for the primary suite are available from the corresponding author on the same terms.
+
+\section*{Funding}
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{CRediT authorship contribution statement}
+\textbf{Saeed~Zarbi:} Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data curation, Writing~-- original draft, Visualization.\par
+\textbf{Leili~Farzinvash:} Conceptualization, Supervision, Project administration, Writing~-- review \& editing.\par
+\textbf{Pedram~Salehpour:} Supervision, Writing~-- review \& editing.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+During the preparation of this work the authors used Claude in order to improve language, clarity, and academic wording. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
+
+% Flush deferred floats so the reference list is not interleaved with figures/tables.
+\clearpage
+
+% Elsevier numeric style (elsarticle bundle). If \texttt{elsarticle-num.bst} is missing, install the \texttt{elsarticle} CTAN package or use \texttt{unsrtnat} temporarily.
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
+
+\end{document}

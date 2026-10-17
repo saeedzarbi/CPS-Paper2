@@ -1,0 +1,17 @@
+\section{System model and metrics}
+\label{sec:system}
+
+We use a chunk-level wall-clock simulator with second-by-second trace integration, six bitrate rungs, chunk duration \(p\), and buffer cap \(B_{\max}\).
+At chunk boundary \(j\), the controller observes buffer level and a history of past throughputs, then selects bitrate \(a_j\).
+The simulator returns chunk download time, rebuffering, and effective throughput \(y_j = \mathrm{bits}_j / \mathrm{dl}_j\) for the executed action.
+
+\paragraph{Forecast.}
+The point predictor is the harmonic mean of the last \(k{=}5\) effective throughputs \(\hat y_j\), shared across horizon steps \(h=1,\ldots,H\) with \(H{=}\TubeHorizon\).
+
+\paragraph{QoE.}
+Episodic QoE is the sum of log-utility minus a rebuffer penalty and a smoothness term (matching the clean-slate evaluation harness).
+We report mean episodic QoE, mean rebuffering seconds, VMAF, and empirical conformal coverage per horizon step and joint coverage over \(H\) steps.
+
+\paragraph{Trace suites.}
+Four families: synthetic \mbox{5G} Markov, synthetic harsh \mbox{5G}, real Irish \mbox{5G} (MMSys'20), and broadband (FCC-style traces).
+Train/validation/test splits are disjoint by trace file; \(\alpha\) is chosen on validation only (\S\ref{sec:eval:protocol}).

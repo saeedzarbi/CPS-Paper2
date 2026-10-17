@@ -1,0 +1,24 @@
+\section{Theoretical guarantees}
+\label{sec:theory}
+
+\begin{theorem}[Simultaneous coverage of the max-score tube]
+\label{thm:maxscore}
+Fix calibration decisions \(\mathcal I\) and test decision \(j\).
+Suppose (A1) \(\sigma\) is determined from data disjoint from \(\{S_i\}_{i\in\mathcal I}\cup\{S_j\}\) and is fixed when scoring each \(S_i\);
+(A2) each calibration score uses a complete \(H\)-chunk window before \(j\);
+(A3) \((S_{i_1},\ldots,S_{i_n},S_j)\) is exchangeable given \(\mathcal D_0\).
+With split-conformal \(\widehat Q\) and \(L_{j,h}=\hat y_j(1-\widehat Q\sigma_h)\),
+\(\Pr(\forall h\le H: y_{j+h-1}\ge L_{j,h}) \ge 1-\alpha\).
+\end{theorem}
+
+\begin{lemma}[Conditional horizon safety of the safe planner]
+\label{lem:safety}
+If the committed plan is tube-safe on \(L_j\) and \(y_{j+h-1}\ge L_{j,h}\) for all \(h\le H\), then open-loop execution incurs no rebuffer over the horizon and retains buffer margin \(m\) before each download.
+The one-step static cap preserves tube-safety of the executed first action.
+\end{lemma}
+
+\begin{remark}[Practice]
+Online rolling windows violate (A1); \texttt{\_fs} implements frozen \(\sigma\) and \(\widehat Q\).
+Temporal dependence within a trace violates (A3); we report cross-trace empirical coverage and use trace-cluster bootstrap for QoE comparisons.
+Chunk-aligned calibration is required when raw trace sampling does not match chunk effective throughput (broadband).
+\end{remark}

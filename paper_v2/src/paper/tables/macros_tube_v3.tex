@@ -1,0 +1,57 @@
+% Auto-synced from docs/reports/tube_v3_adaptive_tables_envchunks.md (Tube-v3 env_chunks TEST).
+% Regenerate manually when headline numbers change.
+
+\newcommand{\TubeHorizon}{5}
+\newcommand{\TubeEpisodes}{100}
+\newcommand{\TubeMasterSeed}{42}
+
+% Primary max-score safe+fs arms (per-family alpha from VAL rule, env_chunks _fs).
+\newcommand{\TubeArmMarkov}{tube\_v2\_maxscore\_a0.15\_safe\_fs}
+\newcommand{\TubeArmHarsh}{tube\_v2\_maxscore\_a0.2\_safe\_fs}
+\newcommand{\TubeArmBB}{tube\_v2\_maxscore\_a0.2\_safe\_fs}
+\newcommand{\TubeArmIrish}{tube\_v2\_maxscore\_a0.1\_safe\_fs}
+
+% 5g_markov
+\newcommand{\TubeMarkovQoE}{11.2}
+\newcommand{\TubeMarkovRebuf}{1.37}
+\newcommand{\TubeMarkovJoint}{0.869}
+\newcommand{\TubeMarkovDQoE}{+40.1}
+\newcommand{\TubeMarkovDQoELo}{+24.1}
+\newcommand{\TubeMarkovDQoEHi}{+56.7}
+\newcommand{\TubeMarkovDRebuf}{-11.96}
+\newcommand{\TubeMarkovDRebufLo}{-15.38}
+\newcommand{\TubeMarkovDRebufHi}{-8.67}
+
+% 5g_harsh
+\newcommand{\TubeHarshQoE}{81.0}
+\newcommand{\TubeHarshRebuf}{0.34}
+\newcommand{\TubeHarshJoint}{0.846}
+\newcommand{\TubeHarshDQoE}{-0.1}
+\newcommand{\TubeHarshDQoELo}{-6.2}
+\newcommand{\TubeHarshDQoEHi}{+6.4}
+\newcommand{\TubeHarshDRebuf}{-2.14}
+\newcommand{\TubeHarshDRebufLo}{-3.15}
+\newcommand{\TubeHarshDRebufHi}{-1.27}
+
+% bb
+\newcommand{\TubeBBQoE}{-32.5}
+\newcommand{\TubeBBRebuf}{16.27}
+\newcommand{\TubeBBJoint}{0.781}
+\newcommand{\TubeBBDQoE}{+0.9}
+\newcommand{\TubeBBDQoELo}{-1.0}
+\newcommand{\TubeBBDQoEHi}{+3.0}
+\newcommand{\TubeBBDRebuf}{-0.01}
+\newcommand{\TubeBBDRebufLo}{-0.31}
+\newcommand{\TubeBBDRebufHi}{+0.28}
+\newcommand{\TubeBBJointA015}{0.834} % same TEST, non-primary arm
+
+% 5g_irish
+\newcommand{\TubeIrishQoE}{-22.6}
+\newcommand{\TubeIrishRebuf}{5.96}
+\newcommand{\TubeIrishJoint}{0.949}
+\newcommand{\TubeIrishDQoE}{+123.0}
+\newcommand{\TubeIrishDQoELo}{+39.8}
+\newcommand{\TubeIrishDQoEHi}{+215.7}
+\newcommand{\TubeIrishDRebuf}{-36.13}
+\newcommand{\TubeIrishDRebufLo}{-59.60}
+\newcommand{\TubeIrishDRebufHi}{-14.58}

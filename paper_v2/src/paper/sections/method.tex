@@ -1,0 +1,35 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Per-step and max-score conformal tubes}
+\label{sec:method:maxscore}
+
+For decision \(j\) (after chunk \(j{-}1\) is observed), step \(h\) refers to chunk \(j{+}h{-}1\).
+The relative one-sided score is
+\[
+  s_{j,h} = \max\!\left(0,\frac{\hat y_j - y_{j+h-1}}{\hat y_j}\right).
+\]
+A per-step tube uses quantile \(q_h\) of past scores at miscoverage \(\alpha_h\) and lower bound \(L_{j,h} = \hat y_j(1-q_h)\).
+
+The \textbf{max-score tube} fixes scales \(\sigma_h>0\) at decision time and forms
+\(S_j = \max_h s_{j,h}/\sigma_h\).
+One joint quantile \(\widehat Q\) of past \(S\) yields
+\(L_{j,h} = \hat y_j(1 - \widehat Q\,\sigma_h)\).
+Bounds are stored before any online update; a decision's score enters calibration only after chunk \(j{+}H{-}1\) is realized.
+
+\subsection{Tube-MPC and pre-refill safety}
+\label{sec:method:mpc}
+
+Tube-MPC enumerates monotone bitrate sequences over \(H\) steps (at most one rung up or down per step).
+Download time on lower-bound throughput is \(d_h = R_{j+h-1}(a_h) / L_{j,h}\).
+The objective is log-utility minus rebuffer and smoothness penalties.
+With \textbf{pre-refill safety}, a sequence is feasible only if, on the tube trajectory,
+\(d_h \le B^{(h-1)} - m\) for margin \(m\) at every step; otherwise the planner falls back to the lowest rung.
+The two-timescale controller executes \(a^{\mathrm{exec}}_1 = \min(a^{\mathrm{tube}}_1, a^{\mathrm{static}}_1)\) where \(a^{\mathrm{static}}\) is the one-step conformal cap (same family as Paper~1).
+
+\subsection{Frozen split calibration (\texttt{\_fs})}
+\label{sec:method:calib}
+
+To approximate assumption (A1) in Theorem~\ref{thm:maxscore}, scales \(\sigma_h\) are fit on even-indexed calibration traces and \(\widehat Q\) on odd-indexed traces with stride \(H\) over chunk decisions.
+Calibration replays traces through the simulator under a fixed reference policy and ingests \emph{chunk effective throughput}, not raw trace ticks, so offline scores match runtime \(y_j\).
+Legacy arms without \texttt{\_fs} keep online rolling windows for ablation.

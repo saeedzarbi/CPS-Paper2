@@ -1,0 +1,18 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{ABR and MPC.}
+Classical controllers include BBA~\cite{huang2014buffer}, BOLA~\cite{spiteri2018bola}, and RobustMPC~\cite{yin2015control}.
+MPC variants forecast throughput and optimize a QoE objective over a short horizon; Kairos~\cite{zhong2025kairos} conditions uncertainty on buffer state but does not provide conformal certificates.
+
+\paragraph{Conformal methods in streaming.}
+Conformal-ABR~\cite{zhong2026conformalabr} wraps predictors with split-conformal intervals under an explicit stall-risk budget.
+SafeSABR~\cite{liu2025safesabr} combines learning with runtime auditing.
+Our work differs by planning over \(H\) steps with a \emph{simultaneous} tube and an explicit safe MPC layer, rather than a single-step projection only.
+
+\paragraph{Multi-step conformal prediction.}
+Weighted and max-score constructions appear in the conformal forecasting literature~\cite{cleaveland2024weighted}; we apply a max-score tube to throughput residuals aligned with chunk indices and cite Cleaveland et al.\ for the construction while focusing on the ABR integration and evaluation protocol.
+
+\paragraph{Relation to Paper~1 (CPS).}
+The one-step CPS shield guarantees per-chunk coverage of the next throughput sample.
+Tube-MPC uses multi-step lower bounds for planning; the executed action is still capped by the same one-step conformal projector for buffer feasibility.
